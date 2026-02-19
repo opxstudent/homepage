@@ -44,7 +44,7 @@ export default function BannerWidget() {
 
     if (image) {
         return (
-            <div className="flex-1 max-w-md h-[120px]">
+            <div className="flex-1 max-w-md w-full aspect-[3/1]">
                 <div className="relative w-full h-full group rounded-xl overflow-hidden">
                     <img
                         src={image}
@@ -70,7 +70,7 @@ export default function BannerWidget() {
     }
 
     return (
-        <div className="flex-1 max-w-md h-[120px] flex items-center justify-center">
+        <div className="flex-1 max-w-md w-full aspect-[3/1] flex items-center justify-center">
             {showUrlInput ? (
                 <div className="w-full h-full bg-[#202022] rounded-xl p-3 flex flex-col justify-center gap-2">
                     <input

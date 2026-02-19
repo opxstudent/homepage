@@ -46,7 +46,7 @@ export default function GreetingSection() {
     };
 
     return (
-        <div className="flex-1 min-w-[280px]">
+        <div className="flex-1 min-w-0 md:min-w-[280px]">
             <div className="flex items-center gap-3 mb-1 md:mb-2 group">
                 <h1 className="text-2xl md:text-4xl font-bold text-white whitespace-nowrap">
                     {greeting},

@@ -11,9 +11,12 @@ import QuoteWidget from '@/components/QuoteWidget';
 export default function Home() {
   return (
     <div className="p-4 md:p-12 space-y-6 md:space-y-8 h-screen overflow-y-auto custom-scrollbar pb-24 md:pb-0">
-      {/* Mobile Greeting */}
-      <div className="md:hidden pb-4">
+      {/* Mobile Greeting + Banner */}
+      <div className="md:hidden pb-4 flex gap-4 items-stretch h-[100px]">
         <GreetingSection />
+        <div className="flex-1 min-w-0">
+          <BannerWidget />
+        </div>
       </div>
 
       {/* Row 1: Header Section (Desktop Only) */}

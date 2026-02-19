@@ -191,7 +191,7 @@ export default function ProjectsDashboard() {
                     <button
                         onPointerDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-white text-text-secondary transition-all rounded"
+                        className="p-1 hover:text-white text-text-secondary transition-all rounded"
                         title="Options"
                     >
                         <MoreHorizontal size={13} />

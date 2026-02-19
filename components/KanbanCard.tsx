@@ -103,7 +103,7 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
                     <button
                         onPointerDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-text-secondary transition-all"
+                        className="p-1 hover:text-red-400 text-text-secondary transition-all"
                         title="Delete task"
                     >
                         <Trash2 size={11} />

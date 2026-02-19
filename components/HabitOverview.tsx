@@ -453,7 +453,7 @@ export function HabitOverview({ habits, allLogs, today, onRefresh }: Props) {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <div className="flex items-center gap-1 flex-shrink-0">
                                     <button onClick={() => startEditing(habit)}
                                         className="p-1 hover:bg-[#3A3A3C] rounded transition-all">
                                         <Edit2 size={13} className="text-text-secondary" />

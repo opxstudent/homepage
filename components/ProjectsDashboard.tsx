@@ -133,6 +133,24 @@ export default function ProjectsDashboard() {
         ]);
     }
 
+    async function addTask(status: Task['status'], title: string, dueDate: string | null) {
+        if (!selectedId) return;
+        const projectTasks = tasks.filter(t => t.project_id === selectedId);
+        const colTasks = projectTasks.filter(t => t.status === status);
+
+        const { data } = await supabase.from('tasks').insert({
+            project_id: selectedId,
+            title,
+            status,
+            due_date: dueDate || null,
+            order: colTasks.length,
+        }).select().single();
+
+        if (data) {
+            handleTasksChange([...projectTasks, data]);
+        }
+    }
+
     const activeProjects = projects.filter(p => p.type === 'project' && p.status === 'active');
     // Group goals by year, sorted descending
     const goalsByYear = projects
@@ -300,6 +318,7 @@ export default function ProjectsDashboard() {
                                 project={selectedProject}
                                 tasks={selectedTasks}
                                 onTasksChange={handleTasksChange}
+                                onAddTask={addTask}
                                 onRefresh={fetchAll}
                             />
                         </div>
@@ -312,6 +331,7 @@ export default function ProjectsDashboard() {
                                     handleTasksChange(tasks.map(t => t.id === id ? { ...t, ...patch } : t));
                                 }}
                                 onBack={() => setSelectedId(null)}
+                                onAddTask={addTask}
                             />
                         </div>
                     </>

@@ -29,10 +29,11 @@ interface Props {
     project: Project;
     tasks: Task[];
     onTasksChange: (tasks: Task[]) => void;
+    onAddTask: (status: Task['status'], title: string, dueDate: string | null) => void;
     onRefresh: () => void;
 }
 
-export default function KanbanBoard({ project, tasks, onTasksChange, onRefresh }: Props) {
+export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, onRefresh }: Props) {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
     const sensors = useSensors(
@@ -90,18 +91,6 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onRefresh }
         );
     }
 
-    async function addTask(status: Task['status'], title: string, dueDate: string | null) {
-        const colTasks = tasks.filter(t => t.status === status);
-        const { data } = await supabase.from('tasks').insert({
-            project_id: project.id,
-            title,
-            status,
-            due_date: dueDate || null,
-            order: colTasks.length,
-        }).select().single();
-        if (data) onTasksChange([...tasks, data]);
-    }
-
     async function updateTask(id: string, patch: Partial<Task>) {
         await supabase.from('tasks').update(patch).eq('id', id);
         onTasksChange(tasks.map(t => t.id === id ? { ...t, ...patch } : t));
@@ -146,7 +135,7 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onRefresh }
                                 id={col.id}
                                 label={col.label}
                                 tasks={tasks.filter(t => t.status === col.id)}
-                                onAddTask={(title: string, dueDate: string | null) => addTask(col.id, title, dueDate)}
+                                onAddTask={(title: string, dueDate: string | null) => onAddTask(col.id, title, dueDate)}
                                 onUpdateTask={updateTask}
                                 onDeleteTask={deleteTask}
                             />

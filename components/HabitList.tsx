@@ -562,7 +562,7 @@ export function HabitList() {
                                 />
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                     <button
                                         onClick={() => startEditing(habit)}
                                         className="p-1 hover:bg-[#3A3A3C] rounded transition-all"

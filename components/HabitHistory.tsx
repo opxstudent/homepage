@@ -219,35 +219,34 @@ export function HabitHistory({ habits, allLogs, today, onRefresh }: Props) {
                                                     autoFocus
                                                 />
                                             ) : (
-                                                <div className="flex items-center gap-1.5">
+                                                <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={() => habit?.habit_type === 'boolean' && toggleStatus(log)}
-                                                        disabled={habit?.habit_type !== 'boolean'}
-                                                        className={habit?.habit_type === 'boolean' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}
+                                                        onClick={() => {
+                                                            if (habit?.habit_type === 'boolean') {
+                                                                toggleStatus(log);
+                                                            } else if (habit?.habit_type === 'quantity') {
+                                                                const isComplete = completed;
+                                                                const newValue = isComplete ? 0 : (habit.target_value || 1);
+                                                                // Manually update
+                                                                supabase.from('habit_logs').update({ value: newValue, completed: !isComplete }).eq('id', log.id).then(() => onRefresh());
+                                                            }
+                                                        }}
+                                                        className="cursor-pointer hover:opacity-80"
+                                                        title={habit?.habit_type === 'quantity' ? "Click to quick complete" : "Click to toggle"}
                                                     >
                                                         {completed
-                                                            ? <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0" />
-                                                            : <Circle size={14} className="text-text-secondary flex-shrink-0" />}
+                                                            ? <CheckCircle2 size={16} className="text-emerald-400 flex-shrink-0" />
+                                                            : <Circle size={16} className="text-text-secondary flex-shrink-0" />}
                                                     </button>
-                                                    {/* Qty habits: click value to edit */}
-                                                    {habit?.habit_type === 'quantity' ? (
-                                                        <button
-                                                            onClick={() => startEditQty(log)}
-                                                            className={`text-sm hover:text-emerald-400 transition-colors ${completed ? 'text-emerald-400' : 'text-text-secondary'}`}
-                                                            title="Click to edit value"
-                                                        >
-                                                            {getStatusLabel(log, habit)}
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => toggleStatus(log)}
-                                                            className={`text-sm hover:text-emerald-400 transition-colors ${completed ? 'text-emerald-400' : 'text-text-secondary'}`}
-                                                            title="Click to toggle status"
-                                                        >
-                                                            {getStatusLabel(log, habit)}
-                                                        </button>
-                                                    )}
 
+                                                    {/* Value display / edit trigger */}
+                                                    <button
+                                                        onClick={() => habit?.habit_type === 'quantity' ? startEditQty(log) : toggleStatus(log)}
+                                                        className={`text-sm hover:text-emerald-400 transition-colors ${completed ? 'text-emerald-400' : 'text-text-secondary'}`}
+                                                        title={habit?.habit_type === 'quantity' ? "Click to edit exact value" : "Click to toggle"}
+                                                    >
+                                                        {getStatusLabel(log, habit)}
+                                                    </button>
                                                 </div>
                                             )}
                                         </td>
@@ -267,92 +266,97 @@ export function HabitHistory({ habits, allLogs, today, onRefresh }: Props) {
                             })}
                         </tbody>
                     </table>
-                )}
-            </div>
+                )
+                }
+            </div >
 
             {/* Backfill modal */}
-            {showBackfill && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-[#202022] rounded-2xl p-6 max-w-md w-full mx-4 border border-[#323234]">
-                        <div className="flex items-center justify-between mb-5">
-                            <h3 className="text-lg font-semibold text-white">Log Past Habit</h3>
-                            <button onClick={() => setShowBackfill(false)} className="text-text-secondary hover:text-white">
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs text-text-secondary mb-1">Habit</label>
-                                <select
-                                    value={backfill.habit_id}
-                                    onChange={e => setBackfill({ ...backfill, habit_id: e.target.value })}
-                                    className="w-full px-3 py-2 bg-surface border border-[#323234] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
-                                >
-                                    <option value="">Select a habit…</option>
-                                    {habits.map(h => (
-                                        <option key={h.id} value={h.id}>{h.title}</option>
-                                    ))}
-                                </select>
+            {
+                showBackfill && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-[#202022] rounded-2xl p-6 max-w-md w-full mx-4 border border-[#323234]">
+                            <div className="flex items-center justify-between mb-5">
+                                <h3 className="text-lg font-semibold text-white">Log Past Habit</h3>
+                                <button onClick={() => setShowBackfill(false)} className="text-text-secondary hover:text-white">
+                                    <X size={18} />
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-xs text-text-secondary mb-1">Date</label>
-                                <input
-                                    type="date"
-                                    value={backfill.date}
-                                    max={today}
-                                    onChange={e => setBackfill({ ...backfill, date: e.target.value })}
-                                    className="w-full px-3 py-2 bg-surface border border-[#323234] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
-                                />
-                            </div>
-                            {selectedBackfillHabit?.habit_type === 'quantity' && (
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-xs text-text-secondary mb-1">
-                                        Value ({selectedBackfillHabit.unit || 'units'})
-                                    </label>
+                                    <label className="block text-xs text-text-secondary mb-1">Habit</label>
+                                    <select
+                                        value={backfill.habit_id}
+                                        onChange={e => setBackfill({ ...backfill, habit_id: e.target.value })}
+                                        className="w-full px-3 py-2 bg-surface border border-[#323234] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="">Select a habit…</option>
+                                        {habits.map(h => (
+                                            <option key={h.id} value={h.id}>{h.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-text-secondary mb-1">Date</label>
                                     <input
-                                        type="number" min="1" value={backfill.value}
-                                        onChange={e => setBackfill({ ...backfill, value: parseInt(e.target.value) || 1 })}
-                                        className="w-full px-3 py-2 bg-surface border border-[#323234] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        type="date"
+                                        value={backfill.date}
+                                        max={today}
+                                        onChange={e => setBackfill({ ...backfill, date: e.target.value })}
+                                        className="w-full px-3 py-2 bg-surface border border-[#323234] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
                                     />
                                 </div>
-                            )}
-                        </div>
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={submitBackfill}
-                                disabled={!backfill.habit_id || !backfill.date}
-                                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-all"
-                            >
-                                Save Log
-                            </button>
-                            <button onClick={() => setShowBackfill(false)}
-                                className="px-4 py-2 bg-[#323234] hover:bg-[#3A3A3C] text-white rounded-lg text-sm transition-all">
-                                Cancel
-                            </button>
+                                {selectedBackfillHabit?.habit_type === 'quantity' && (
+                                    <div>
+                                        <label className="block text-xs text-text-secondary mb-1">
+                                            Value ({selectedBackfillHabit.unit || 'units'})
+                                        </label>
+                                        <input
+                                            type="number" min="1" value={backfill.value}
+                                            onChange={e => setBackfill({ ...backfill, value: parseInt(e.target.value) || 1 })}
+                                            className="w-full px-3 py-2 bg-surface border border-[#323234] rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={submitBackfill}
+                                    disabled={!backfill.habit_id || !backfill.date}
+                                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-all"
+                                >
+                                    Save Log
+                                </button>
+                                <button onClick={() => setShowBackfill(false)}
+                                    className="px-4 py-2 bg-[#323234] hover:bg-[#3A3A3C] text-white rounded-lg text-sm transition-all">
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Delete log confirmation modal */}
-            {deletingLogId && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-[#202022] rounded-2xl p-6 max-w-md w-full mx-4 border border-[#323234]">
-                        <h3 className="text-lg font-semibold text-white mb-2">Delete Log Entry</h3>
-                        <p className="text-text-secondary mb-6">Remove this log entry? The habit itself won't be deleted.</p>
-                        <div className="flex gap-3 justify-end">
-                            <button onClick={() => setDeletingLogId(null)}
-                                className="px-4 py-2 bg-[#323234] hover:bg-[#3A3A3C] text-white rounded-lg text-sm transition-all">
-                                Cancel
-                            </button>
-                            <button onClick={() => deleteLog(deletingLogId)}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all">
-                                Delete
-                            </button>
+            {
+                deletingLogId && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-[#202022] rounded-2xl p-6 max-w-md w-full mx-4 border border-[#323234]">
+                            <h3 className="text-lg font-semibold text-white mb-2">Delete Log Entry</h3>
+                            <p className="text-text-secondary mb-6">Remove this log entry? The habit itself won't be deleted.</p>
+                            <div className="flex gap-3 justify-end">
+                                <button onClick={() => setDeletingLogId(null)}
+                                    className="px-4 py-2 bg-[#323234] hover:bg-[#3A3A3C] text-white rounded-lg text-sm transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => deleteLog(deletingLogId)}
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all">
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

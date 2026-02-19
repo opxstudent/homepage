@@ -439,11 +439,7 @@ export function HabitOverview({ habits, allLogs, today, onRefresh }: Props) {
 
                                 {/* Mini heatmap — last 30 days */}
                                 <div className="flex items-center gap-3 justify-end shrink-0 ml-auto mr-4">
-                                    {streak > 0 && (
-                                        <div className="text-xs text-text-secondary font-medium">
-                                            {streak}
-                                        </div>
-                                    )}
+                                    {/* Streak number removed as per user request */}
                                     <div className="hidden md:flex gap-[3px]">
                                         {mini.map((day, i) => (
                                             <div

@@ -245,8 +245,8 @@ export default function WorkoutHistory() {
                                             {exName}
                                         </h4>
 
-                                        {/* Table Header */}
-                                        <div className="grid grid-cols-12 gap-2 text-[10px] uppercase font-bold text-text-secondary px-2 mb-1">
+                                        {/* Table Header (Desktop Only) */}
+                                        <div className="hidden md:grid grid-cols-12 gap-2 text-[10px] uppercase font-bold text-text-secondary px-2 mb-1">
                                             <div className="col-span-1 text-center">#</div>
                                             <div className="col-span-2">Weight</div>
                                             <div className="col-span-2">Reps</div>
@@ -257,11 +257,12 @@ export default function WorkoutHistory() {
 
                                         <div className="space-y-1">
                                             {exLogs.map((log: WorkoutLog) => (
-                                                <div key={log.id} className="grid grid-cols-12 gap-2 text-xs py-2 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded -mx-2 bg-[#1a1a1c]/50 items-center group">
+                                                <div key={log.id} className="flex flex-col md:grid md:grid-cols-12 gap-2 text-xs py-2 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded -mx-2 bg-[#1a1a1c]/50 items-start md:items-center group">
                                                     {editingLogId === log.id ? (
                                                         // Editing Mode
-                                                        <>
-                                                            <div className="col-span-1">
+                                                        <div className="w-full grid grid-cols-12 gap-2">
+                                                            <div className="col-span-2 md:col-span-1 text-center">
+                                                                <label className="text-[9px] text-text-secondary uppercase md:hidden block mb-1">Set</label>
                                                                 <input
                                                                     type="number"
                                                                     className="w-full bg-black/40 text-white text-center rounded focus:outline-accent-blue py-1"
@@ -269,7 +270,8 @@ export default function WorkoutHistory() {
                                                                     onChange={e => setEditForm({ ...editForm, set_number: parseInt(e.target.value) || 0 })}
                                                                 />
                                                             </div>
-                                                            <div className="col-span-2">
+                                                            <div className="col-span-3 md:col-span-2">
+                                                                <label className="text-[9px] text-text-secondary uppercase md:hidden block mb-1">Kg</label>
                                                                 <input
                                                                     type="number"
                                                                     className="w-full bg-black/40 text-white rounded focus:outline-accent-blue py-1 px-1"
@@ -278,7 +280,8 @@ export default function WorkoutHistory() {
                                                                     onChange={e => setEditForm({ ...editForm, weight: parseFloat(e.target.value) || null })}
                                                                 />
                                                             </div>
-                                                            <div className="col-span-2">
+                                                            <div className="col-span-3 md:col-span-2">
+                                                                <label className="text-[9px] text-text-secondary uppercase md:hidden block mb-1">Reps</label>
                                                                 <input
                                                                     type="number"
                                                                     className="w-full bg-black/40 text-white rounded focus:outline-accent-blue py-1 px-1"
@@ -287,7 +290,8 @@ export default function WorkoutHistory() {
                                                                     onChange={e => setEditForm({ ...editForm, reps: parseFloat(e.target.value) || null })}
                                                                 />
                                                             </div>
-                                                            <div className="col-span-1">
+                                                            <div className="col-span-2 md:col-span-1">
+                                                                <label className="text-[9px] text-text-secondary uppercase md:hidden block mb-1">RPE</label>
                                                                 <input
                                                                     type="number"
                                                                     max="10"
@@ -297,7 +301,8 @@ export default function WorkoutHistory() {
                                                                     onChange={e => setEditForm({ ...editForm, rpe: parseFloat(e.target.value) || null })}
                                                                 />
                                                             </div>
-                                                            <div className="col-span-2">
+                                                            <div className="col-span-2 md:col-span-2">
+                                                                <label className="text-[9px] text-text-secondary uppercase md:hidden block mb-1">Time</label>
                                                                 <input
                                                                     type="number"
                                                                     className="w-full bg-black/40 text-white rounded focus:outline-accent-blue py-1 px-1"
@@ -306,7 +311,8 @@ export default function WorkoutHistory() {
                                                                     onChange={e => setEditForm({ ...editForm, duration_mins: parseFloat(e.target.value) || null })}
                                                                 />
                                                             </div>
-                                                            <div className="col-span-3">
+                                                            <div className="col-span-12 md:col-span-3">
+                                                                <label className="text-[9px] text-text-secondary uppercase md:hidden block mb-1">Notes</label>
                                                                 <input
                                                                     type="text"
                                                                     className="w-full bg-black/40 text-white rounded focus:outline-accent-blue py-1 px-1"
@@ -317,43 +323,47 @@ export default function WorkoutHistory() {
                                                                     autoFocus
                                                                 />
                                                             </div>
-                                                            <div className="col-span-1 flex justify-end gap-1 items-center">
+                                                            <div className="col-span-12 md:col-span-1 flex justify-end gap-1 items-center mt-2 md:mt-0">
                                                                 <button onClick={handleSaveEdit} className="text-green-500 hover:bg-green-500/10 p-1 rounded" title="Save"><Check size={14} /></button>
                                                                 <button onClick={handleCancelEdit} className="text-text-secondary hover:bg-white/10 p-1 rounded" title="Cancel"><X size={14} /></button>
                                                                 <button onClick={() => promptDeleteLog(log.id)} className="text-red-500 hover:bg-red-500/10 p-1 rounded ml-1" title="Delete"><Trash2 size={14} /></button>
                                                             </div>
-                                                        </>
+                                                        </div>
                                                     ) : (
                                                         // View Mode
-                                                        <>
-                                                            <div className="col-span-1 text-text-secondary font-mono flex items-center justify-center">
-                                                                {log.set_number}
+                                                        <div className="w-full grid grid-cols-12 md:grid-cols-12 gap-2 items-center">
+                                                            <div className="col-span-2 md:col-span-1 text-text-secondary font-mono flex items-center justify-start md:justify-center">
+                                                                <span className="md:hidden text-[9px] uppercase mr-1">Set</span> {log.set_number}
                                                             </div>
-                                                            <div className="col-span-2 text-white font-medium flex items-center gap-1">
+                                                            <div className="col-span-3 md:col-span-2 text-white font-medium flex items-center gap-1">
                                                                 {log.weight ? `${log.weight}kg` : '-'}
                                                                 {log.is_pr && <span className="text-[9px] bg-accent-date/20 text-accent-date px-1 rounded flex items-center gap-0.5"><Flame size={8} />PR</span>}
                                                             </div>
-                                                            <div className="col-span-2 text-text-secondary flex items-center">
+                                                            <div className="col-span-3 md:col-span-2 text-text-secondary flex items-center">
                                                                 {log.reps ? `${log.reps} reps` : '-'}
                                                             </div>
-                                                            <div className="col-span-1 text-text-secondary flex items-center">
-                                                                {log.rpe ?? '-'}
+                                                            <div className="col-span-2 md:col-span-1 text-text-secondary flex items-center">
+                                                                <span className="md:hidden text-[9px] uppercase mr-1">RPE</span> {log.rpe ?? '-'}
                                                             </div>
-                                                            <div className="col-span-2 text-text-secondary flex items-center">
-                                                                {log.duration_mins ? `${log.duration_mins}m` : '-'}
+                                                            <div className="col-span-2 md:col-span-2 text-text-secondary flex items-center">
+                                                                <span className="md:hidden text-[9px] uppercase mr-1">Time</span> {log.duration_mins ? `${log.duration_mins}m` : '-'}
                                                             </div>
-                                                            <div className="col-span-3 text-text-secondary truncate italic flex items-center text-[10px]">
-                                                                {log.notes || ''}
+
+                                                            {/* Notes & Edit Button */}
+                                                            <div className="col-span-12 md:col-span-4 flex justify-between items-center mt-1 md:mt-0">
+                                                                <div className="text-text-secondary truncate italic flex items-center text-[10px] flex-1">
+                                                                    {log.notes || ''}
+                                                                </div>
+                                                                <div className="flex justify-end opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                                                    <button
+                                                                        onClick={() => handleEditClick(log)}
+                                                                        className="text-text-secondary hover:text-white p-1 hover:bg-white/10 rounded"
+                                                                    >
+                                                                        <Edit2 size={12} />
+                                                                    </button>
+                                                                </div>
                                                             </div>
-                                                            <div className="col-span-1 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={() => handleEditClick(log)}
-                                                                    className="text-text-secondary hover:text-white p-1 hover:bg-white/10 rounded"
-                                                                >
-                                                                    <Edit2 size={12} />
-                                                                </button>
-                                                            </div>
-                                                        </>
+                                                        </div>
                                                     )}
                                                 </div>
                                             ))}

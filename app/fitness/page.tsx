@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Dumbbell, Plus, Play, Calendar, Timer, Flame, TrendingUp, ChevronRight, X, LayoutGrid, Zap, Trash2 } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Plus, Play, Calendar, Timer, Flame, TrendingUp, ChevronRight, X, LayoutGrid, Zap, Trash2, Edit2, Pencil } from 'lucide-react';
 import { getWorkoutGroups, getRoutineExercises, getAllExercises, createWorkoutGroup, createExercise, updateExercise, deleteExercise, getFitnessStats, logSet, addExerciseToRoutine, updateRoutineExercise, removeExerciseFromRoutine, deleteWorkoutGroup, WorkoutGroup, Exercise, RoutineExercise, FitnessStats } from '@/lib/fitnessUtils';
 import WorkoutSessionTable from '@/components/Fitness/WorkoutSessionTable';
 import FitnessStatsDashboard from '@/components/Fitness/FitnessStats';
@@ -38,6 +38,7 @@ export default function FitnessPage() {
 
     // Dashboard Selection State
     const [dashboardRoutineId, setDashboardRoutineId] = useState<string>('free');
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     // Fetch initial data
     useEffect(() => {
@@ -267,6 +268,45 @@ export default function FitnessPage() {
                         <Plus size={18} />
                         Add Exercise
                     </button>
+                    {showCancelConfirm ? (
+                        <div className="flex gap-2 animate-in fade-in slide-in-from-right-4 duration-200">
+                            <button
+                                onClick={() => setShowCancelConfirm(false)}
+                                className="px-3 py-2 bg-white/5 border border-white/10 text-text-secondary rounded-lg hover:bg-white/10 transition-colors text-sm"
+                            >
+                                Keep
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setExercises([]);
+                                    setView('dashboard');
+                                    setSessionTitle('');
+                                    setSelectedGroupId(null);
+                                    setSelectedGroup(null);
+                                    setShowCancelConfirm(false);
+                                }}
+                                className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors font-semibold text-sm"
+                            >
+                                Confirm Cancel
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                if (exercises.length === 0) {
+                                    setView('dashboard');
+                                    setSessionTitle('');
+                                    setSelectedGroupId(null);
+                                    setSelectedGroup(null);
+                                } else {
+                                    setShowCancelConfirm(true);
+                                }
+                            }}
+                            className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors font-semibold"
+                        >
+                            Cancel
+                        </button>
+                    )}
                     <button
                         onClick={() => {
                             setView('dashboard');
@@ -358,9 +398,9 @@ export default function FitnessPage() {
     const [showCreateRoutine, setShowCreateRoutine] = useState(false);
 
     const renderCustomSetup = () => (
-        <div className="max-w-6xl mx-auto h-[calc(100vh-140px)] flex gap-6 animate-in fade-in slide-in-from-right-8 duration-300">
+        <div className="max-w-6xl mx-auto h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 animate-in fade-in slide-in-from-right-8 duration-300">
             {/* Left Col: Routine List */}
-            <div className="w-1/3 bg-[#1a1a1c] border border-white/5 rounded-2xl flex flex-col overflow-hidden">
+            <div className={`w-full md:w-1/3 bg-[#1a1a1c] border border-white/5 rounded-2xl flex-col overflow-hidden ${selectedGroup ? 'hidden md:flex' : 'flex'}`}>
                 <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#151516]">
                     <h3 className="font-bold text-white">Routines</h3>
                     <button
@@ -394,13 +434,21 @@ export default function FitnessPage() {
             </div>
 
             {/* Right Col: Editor */}
-            <div className="flex-1 bg-[#1a1a1c] border border-white/5 rounded-2xl flex flex-col overflow-hidden">
+            <div className={`flex-1 bg-[#1a1a1c] border border-white/5 rounded-2xl flex-col overflow-hidden ${selectedGroup ? 'flex' : 'hidden md:flex'}`}>
                 {selectedGroup ? (
                     <>
                         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#151516]">
-                            <div>
-                                <h3 className="font-bold text-white text-lg">{selectedGroup.name}</h3>
-                                <p className="text-xs text-text-secondary">{exercises.length} exercises</p>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => { setSelectedGroup(null); setSelectedGroupId(null); }}
+                                    className="md:hidden p-1 -ml-1 hover:bg-white/10 rounded-lg text-text-secondary"
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+                                <div>
+                                    <h3 className="font-bold text-white text-lg">{selectedGroup.name}</h3>
+                                    <p className="text-xs text-text-secondary">{exercises.length} exercises</p>
+                                </div>
                             </div>
                             <div className="flex gap-2">
                                 <button
@@ -428,17 +476,35 @@ export default function FitnessPage() {
                                 </div>
                             ) : (
                                 exercises.map((ex, idx) => (
-                                    <div key={ex.id} className="bg-[#202022] rounded-xl p-3 border border-white/5 flex items-center gap-4 group">
-                                        <div className="w-6 h-6 flex items-center justify-center text-xs text-text-secondary font-mono bg-white/5 rounded-full">
-                                            {idx + 1}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-bold text-white">{ex.name}</div>
-                                            <div className="text-xs text-text-secondary">{ex.category}</div>
+                                    <div key={ex.id} className="bg-[#202022] rounded-xl p-3 border border-white/5 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 group">
+                                        <div className="flex items-center gap-3 w-full md:w-auto">
+                                            <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs text-text-secondary font-mono bg-white/5 rounded-full">
+                                                {idx + 1}
+                                            </div>
+                                            <div className="flex-1 md:flex-none">
+                                                <div className="font-bold text-white">{ex.name}</div>
+                                                <div className="text-xs text-text-secondary">{ex.category}</div>
+                                            </div>
+                                            {/* Mobile Delete Button (visible on top row) */}
+                                            <button
+                                                onClick={async () => {
+                                                    if (selectedGroupId && confirm("Remove from routine?")) {
+                                                        const success = await removeExerciseFromRoutine(selectedGroupId, ex.id);
+                                                        if (success) {
+                                                            setExercises(exercises.filter(e => e.id !== ex.id));
+                                                        }
+                                                    }
+                                                }}
+                                                className="md:hidden p-2 text-text-secondary hover:text-red-400"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
 
+                                        <div className="flex-1 hidden md:block" /> {/* Spacer for desktop */}
+
                                         {/* Defaults Editor */}
-                                        <div className="flex items-center gap-2 text-xs">
+                                        <div className="flex flex-wrap items-center gap-2 text-xs w-full md:w-auto justify-between md:justify-end bg-[#151516] md:bg-transparent p-2 md:p-0 rounded-lg">
                                             <div className="flex flex-col items-center">
                                                 <span className="text-text-secondary text-[10px] uppercase">Sets</span>
                                                 <input
@@ -497,12 +563,12 @@ export default function FitnessPage() {
                                                     }}
                                                 />
                                             </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-text-secondary text-[10px] uppercase">Notes</span>
+                                            <div className="flex flex-col items-center w-full md:w-auto mt-2 md:mt-0">
+                                                <span className="text-text-secondary text-[10px] uppercase md:hidden mb-1">Notes</span>
                                                 <input
                                                     type="text"
-                                                    className="w-32 bg-black/20 text-left rounded p-1 text-white text-xs focus:outline-accent-blue px-2"
-                                                    placeholder="Optional..."
+                                                    className="w-full md:w-32 bg-black/20 text-left rounded p-1 text-white text-xs focus:outline-accent-blue px-2"
+                                                    placeholder="Notes..."
                                                     defaultValue={ex.notes ?? ''}
                                                     onBlur={async (e) => {
                                                         const val = e.target.value;
@@ -514,17 +580,17 @@ export default function FitnessPage() {
                                             </div>
                                         </div>
 
+                                        {/* Desktop Delete Button */}
                                         <button
                                             onClick={async () => {
                                                 if (selectedGroupId && confirm("Remove from routine?")) {
                                                     const success = await removeExerciseFromRoutine(selectedGroupId, ex.id);
                                                     if (success) {
-                                                        // Update local list
                                                         setExercises(exercises.filter(e => e.id !== ex.id));
                                                     }
                                                 }
                                             }}
-                                            className="p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                            className="hidden md:block p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -637,17 +703,17 @@ export default function FitnessPage() {
                         </h3>
                         <div className="space-y-2">
                             {exercises.map(ex => (
-                                <div key={ex.id} className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-all group">
+                                <div key={ex.id} className="flex flex-col md:flex-row md:justify-between md:items-center p-3 bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-all group gap-2 md:gap-0">
                                     <div className="flex items-center gap-4">
-                                        <div className="font-medium text-white">{ex.name}</div>
+                                        <div className="font-medium text-white break-words">{ex.name}</div>
                                     </div>
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity self-end md:self-auto">
                                         <button
                                             onClick={() => handleEditExercise(ex)}
                                             className="p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
                                             title="Edit"
                                         >
-                                            <TrendingUp size={16} />
+                                            <Pencil size={16} />
                                         </button>
                                         <button
                                             onClick={() => handleDeleteClick(ex)}
@@ -675,7 +741,7 @@ export default function FitnessPage() {
     return (
         <div className="flex-1 p-8 overflow-y-auto h-screen relative scrollbar-hide">
             {/* Header / Nav */}
-            <header className="flex items-center justify-between gap-4 mb-8 sticky top-0 z-20 bg-background/80 backdrop-blur-md py-2">
+            <header className="flex items-center justify-between gap-4 mb-8 py-2">
                 <div className="flex items-center gap-2">
                     {view !== 'dashboard' && (
                         <button
@@ -686,7 +752,7 @@ export default function FitnessPage() {
                         </button>
                     )}
                     <div className="flex items-center gap-3">
-                        <LayoutGrid className="text-accent-blue" size={24} />
+                        <Dumbbell className="text-accent-blue" size={24} />
                         <span className="font-bold text-xl tracking-tight text-white">
                             {view === 'dashboard' ? 'Fitness Hub' : 'Back to Hub'}
                         </span>

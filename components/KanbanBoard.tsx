@@ -139,7 +139,7 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onRefresh }
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
-                    <div className="flex gap-5 h-full p-8 min-w-max">
+                    <div className="flex gap-5 h-full p-4 md:p-8 min-w-max">
                         {COLUMNS.map(col => (
                             <KanbanColumn
                                 key={col.id}

@@ -47,8 +47,8 @@ export default function GreetingSection() {
 
     return (
         <div className="flex-1 min-w-[280px]">
-            <div className="flex items-center gap-3 mb-2 group">
-                <h1 className="text-4xl font-bold text-white whitespace-nowrap">
+            <div className="flex items-center gap-3 mb-1 md:mb-2 group">
+                <h1 className="text-2xl md:text-4xl font-bold text-white whitespace-nowrap">
                     {greeting},
                 </h1>
                 {isEditing ? (
@@ -59,7 +59,7 @@ export default function GreetingSection() {
                             onChange={(e) => setName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                             onBlur={handleSave}
-                            className="bg-transparent text-4xl font-bold text-accent-blue focus:outline-none border-b-2 border-accent-blue w-[150px]"
+                            className="bg-transparent text-2xl md:text-4xl font-bold text-accent-blue focus:outline-none border-b-2 border-accent-blue w-[120px] md:w-[150px]"
                         />
                         <button onClick={handleSave} className="p-1 hover:bg-white/10 rounded-full text-emerald-400">
                             <Check size={24} />
@@ -67,7 +67,7 @@ export default function GreetingSection() {
                     </div>
                 ) : (
                     <div className="flex items-center gap-3">
-                        <span className="text-4xl font-bold text-accent-blue truncate max-w-[200px]">
+                        <span className="text-2xl md:text-4xl font-bold text-accent-blue truncate max-w-[150px] md:max-w-[200px]">
                             {name}
                         </span>
                         <button
@@ -80,7 +80,7 @@ export default function GreetingSection() {
                 )}
             </div>
 
-            <div className="flex items-center gap-3 text-text-secondary text-lg">
+            <div className="flex items-center gap-3 text-text-secondary text-sm md:text-lg">
                 <span>{dateString}</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
                 <Clock />

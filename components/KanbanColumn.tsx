@@ -57,7 +57,7 @@ export default function KanbanColumn({ id, label, tasks, onAddTask, onUpdateTask
             {/* Drop zone */}
             <div
                 ref={setNodeRef}
-                className={`flex-1 min-h-[200px] rounded-xl p-2 space-y-2 transition-colors ${isOver ? 'bg-white/5' : 'bg-transparent'}`}
+                className={`flex-1 min-h-[200px] overflow-y-auto rounded-xl p-2 space-y-2 transition-colors ${isOver ? 'bg-white/5' : 'bg-transparent'}`}
             >
                 <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                     {tasks.map(task => (

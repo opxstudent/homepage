@@ -739,7 +739,7 @@ export default function FitnessPage() {
     );
 
     return (
-        <div className="flex-1 p-8 overflow-y-auto h-screen relative scrollbar-hide">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto h-screen relative scrollbar-hide">
             {/* Header / Nav */}
             <header className="flex items-center justify-between gap-4 mb-8 py-2">
                 <div className="flex items-center gap-2">

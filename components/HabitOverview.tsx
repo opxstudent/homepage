@@ -438,15 +438,22 @@ export function HabitOverview({ habits, allLogs, today, onRefresh }: Props) {
                                 </div>
 
                                 {/* Mini heatmap — last 30 days */}
-                                <div className="flex gap-[3px] justify-end shrink-0 ml-auto mr-4">
-                                    {mini.map((day, i) => (
-                                        <div
-                                            key={i}
-                                            className="w-[10px] h-[10px] rounded-sm flex-shrink-0"
-                                            style={{ backgroundColor: day.done ? habit.color : '#202022' }}
-                                            title={day.date}
-                                        />
-                                    ))}
+                                <div className="flex items-center gap-3 justify-end shrink-0 ml-auto mr-4">
+                                    {streak > 0 && (
+                                        <div className="text-xs text-text-secondary font-medium">
+                                            {streak}
+                                        </div>
+                                    )}
+                                    <div className="hidden md:flex gap-[3px]">
+                                        {mini.map((day, i) => (
+                                            <div
+                                                key={i}
+                                                className="w-[10px] h-[10px] rounded-sm flex-shrink-0"
+                                                style={{ backgroundColor: day.done ? habit.color : '#202022' }}
+                                                title={day.date}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Actions */}

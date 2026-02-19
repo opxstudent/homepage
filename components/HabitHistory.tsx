@@ -75,6 +75,19 @@ export function HabitHistory({ habits, allLogs, today, onRefresh }: Props) {
         onRefresh();
     }
 
+    async function toggleStatus(log: HabitLog) {
+        const habit = getHabit(log.habit_id);
+        if (!habit || habit.habit_type !== 'boolean') return;
+
+        const newCompleted = !log.completed;
+
+        await supabase.from('habit_logs').update({
+            completed: newCompleted
+        }).eq('id', log.id);
+
+        onRefresh();
+    }
+
     function startEditDate(log: HabitLog) {
         setEditingLog({ id: log.id, field: 'date' });
         setEditingDate(log.date);
@@ -207,9 +220,15 @@ export function HabitHistory({ habits, allLogs, today, onRefresh }: Props) {
                                                 />
                                             ) : (
                                                 <div className="flex items-center gap-1.5">
-                                                    {completed
-                                                        ? <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0" />
-                                                        : <Circle size={14} className="text-text-secondary flex-shrink-0" />}
+                                                    <button
+                                                        onClick={() => habit?.habit_type === 'boolean' && toggleStatus(log)}
+                                                        disabled={habit?.habit_type !== 'boolean'}
+                                                        className={habit?.habit_type === 'boolean' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}
+                                                    >
+                                                        {completed
+                                                            ? <CheckCircle2 size={14} className="text-emerald-400 flex-shrink-0" />
+                                                            : <Circle size={14} className="text-text-secondary flex-shrink-0" />}
+                                                    </button>
                                                     {/* Qty habits: click value to edit */}
                                                     {habit?.habit_type === 'quantity' ? (
                                                         <button
@@ -220,10 +239,15 @@ export function HabitHistory({ habits, allLogs, today, onRefresh }: Props) {
                                                             {getStatusLabel(log, habit)}
                                                         </button>
                                                     ) : (
-                                                        <span className={`text-sm ${completed ? 'text-emerald-400' : 'text-text-secondary'}`}>
+                                                        <button
+                                                            onClick={() => toggleStatus(log)}
+                                                            className={`text-sm hover:text-emerald-400 transition-colors ${completed ? 'text-emerald-400' : 'text-text-secondary'}`}
+                                                            title="Click to toggle status"
+                                                        >
                                                             {getStatusLabel(log, habit)}
-                                                        </span>
+                                                        </button>
                                                     )}
+
                                                 </div>
                                             )}
                                         </td>

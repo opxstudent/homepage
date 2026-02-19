@@ -505,3 +505,71 @@ export async function updateRoutineExercise(
     }
     return true;
 }
+
+export async function getWorkoutHistory(limit = 50, offset = 0): Promise<WorkoutLog[]> {
+    const { data, error } = await supabase
+        .from('workout_logs')
+        .select(`
+            *,
+            exercise:exercises (
+                name,
+                category
+            )
+        `)
+        .order('date', { ascending: false })
+        .order('exercise_id') // Group by exercise within date roughly
+        .order('set_number')
+        .range(offset, offset + limit - 1);
+
+    if (error) {
+        console.error('Error fetching workout history:', error);
+        return [];
+    }
+
+    return data as any;
+}
+
+export async function updateWorkoutLog(logId: string, updates: Partial<WorkoutLog>): Promise<boolean> {
+    const { error } = await supabase
+        .from('workout_logs')
+        .update(updates)
+        .eq('id', logId);
+
+    if (error) {
+        console.error('Error updating workout log:', error);
+        return false;
+    }
+    return true;
+}
+
+export async function deleteWorkoutLog(logId: string): Promise<boolean> {
+    const { error } = await supabase
+        .from('workout_logs')
+        .delete()
+        .eq('id', logId);
+
+    if (error) {
+        console.error('Error deleting workout log:', error);
+        return false;
+    }
+    return true;
+}
+
+export async function deleteWorkoutSession(date: string): Promise<boolean> {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+
+    const { error } = await supabase
+        .from('workout_logs')
+        .delete()
+        .gte('date', start.toISOString())
+        .lte('date', end.toISOString());
+
+    if (error) {
+        console.error('Error deleting workout session:', error);
+        return false;
+    }
+    return true;
+}

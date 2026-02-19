@@ -49,7 +49,7 @@ export default function ProjectsDashboard() {
         ]);
         if (pRes.data) {
             setProjects(pRes.data);
-            if (!selectedId && pRes.data.length > 0) setSelectedId(pRes.data[0].id);
+            // Removed auto-selection so mobile users see the list first
         }
         if (tRes.data) setTasks(tRes.data);
     }

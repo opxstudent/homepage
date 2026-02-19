@@ -5,9 +5,10 @@ import { ArrowLeft, Dumbbell, Plus, Play, Calendar, Timer, Flame, TrendingUp, Ch
 import { getWorkoutGroups, getRoutineExercises, getAllExercises, createWorkoutGroup, createExercise, updateExercise, deleteExercise, getFitnessStats, logSet, addExerciseToRoutine, updateRoutineExercise, removeExerciseFromRoutine, deleteWorkoutGroup, WorkoutGroup, Exercise, RoutineExercise, FitnessStats } from '@/lib/fitnessUtils';
 import WorkoutSessionTable from '@/components/Fitness/WorkoutSessionTable';
 import FitnessStatsDashboard from '@/components/Fitness/FitnessStats';
+import WorkoutHistory from '@/components/Fitness/WorkoutHistory';
 import { v4 as uuidv4 } from 'uuid';
 
-type ViewState = 'dashboard' | 'group_select' | 'workout' | 'custom_setup' | 'free_session' | 'exercises';
+type ViewState = 'dashboard' | 'group_select' | 'workout' | 'custom_setup' | 'free_session' | 'exercises' | 'history';
 
 export default function FitnessPage() {
     const [view, setView] = useState<ViewState>('dashboard');
@@ -166,7 +167,7 @@ export default function FitnessPage() {
     };
 
     const handleBack = () => {
-        if (view === 'workout' || view === 'custom_setup' || view === 'exercises') {
+        if (view === 'workout' || view === 'custom_setup' || view === 'exercises' || view === 'history') {
             setView('dashboard');
             setExercises([]);
             loadInitialData(); // Refresh stats on return
@@ -224,6 +225,9 @@ export default function FitnessPage() {
                     {/* Placeholder for future Exercise Library management */}
                     <button onClick={() => setView('exercises')} className="hover:text-white flex items-center gap-1 transition-colors">
                         <Dumbbell size={16} /> Exercise Library
+                    </button>
+                    <button onClick={() => setView('history')} className="hover:text-white flex items-center gap-1 transition-colors">
+                        <Calendar size={16} /> History
                     </button>
                 </div>
             </div>
@@ -701,6 +705,7 @@ export default function FitnessPage() {
                 {view === 'workout' && renderWorkoutView()}
                 {view === 'custom_setup' && renderCustomSetup()}
                 {view === 'exercises' && renderExerciseLibrary()}
+                {view === 'history' && <WorkoutHistory />}
             </div>
 
             {/* Add Exercise Modal / Input Area (Shared) */}

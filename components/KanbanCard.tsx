@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Trash2, Calendar, X } from 'lucide-react';
+import { Trash2, Calendar, X, Edit2 } from 'lucide-react';
 import { Task } from './ProjectsDashboard';
 
 interface Props {
@@ -17,6 +17,11 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
     const [editingTitle, setEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(task.title);
     const [confirmDelete, setConfirmDelete] = useState(false);
+
+    // Full Edit Modal State
+    const [isEditingModalOpen, setIsEditingModalOpen] = useState(false);
+    const [editTitle, setEditTitle] = useState(task.title);
+    const [editDue, setEditDue] = useState(task.due_date ? task.due_date.slice(0, 10) : '');
 
     const {
         attributes,
@@ -53,6 +58,19 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
             onUpdate({ title: titleDraft.trim() });
         }
         setEditingTitle(false);
+    }
+
+    function handleSaveFullEdit() {
+        if (!editTitle.trim()) return;
+        const patch: Partial<Task> = {};
+        if (editTitle.trim() !== task.title) patch.title = editTitle.trim();
+        const due = editDue ? editDue : null;
+        if (due !== (task.due_date ? task.due_date.slice(0, 10) : null)) patch.due_date = due;
+
+        if (Object.keys(patch).length > 0) {
+            onUpdate(patch);
+        }
+        setIsEditingModalOpen(false);
     }
 
     const dueInfo = getDueLabel(task.due_date);
@@ -100,14 +118,29 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
                         </span>
                     ) : <span />}
 
-                    <button
-                        onPointerDown={e => e.stopPropagation()}
-                        onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
-                        className="p-1 hover:text-red-400 text-text-secondary transition-all"
-                        title="Delete task"
-                    >
-                        <Trash2 size={11} />
-                    </button>
+                    <div className="flex gap-1">
+                        <button
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={e => {
+                                e.stopPropagation();
+                                setEditTitle(task.title);
+                                setEditDue(task.due_date ? task.due_date.slice(0, 10) : '');
+                                setIsEditingModalOpen(true);
+                            }}
+                            className="p-1 hover:text-white text-text-secondary transition-all"
+                            title="Edit task"
+                        >
+                            <Edit2 size={11} />
+                        </button>
+                        <button
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+                            className="p-1 hover:text-red-400 text-text-secondary transition-all"
+                            title="Delete task"
+                        >
+                            <Trash2 size={11} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -139,6 +172,58 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
                                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all"
                             >
                                 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Task Modal */}
+            {isEditingModalOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+                    onPointerDown={e => e.stopPropagation()}
+                >
+                    <div className="bg-[#202022] rounded-2xl p-6 max-w-sm w-full border border-[#323234] shadow-xl">
+                        <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-base font-semibold text-white">Edit Task</h3>
+                            <button onClick={() => setIsEditingModalOpen(false)} className="text-text-secondary hover:text-white">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="text-xs text-text-secondary block mb-1.5">Title</label>
+                                <input
+                                    autoFocus
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-text-secondary block mb-1.5">Due Date</label>
+                                <input
+                                    type="date"
+                                    value={editDue}
+                                    onChange={e => setEditDue(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setIsEditingModalOpen(false)}
+                                className="px-4 py-2 bg-[#323234] hover:bg-[#3a3a3c] text-white rounded-lg text-sm transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveFullEdit}
+                                disabled={!editTitle.trim()}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                            >
+                                Save
                             </button>
                         </div>
                     </div>

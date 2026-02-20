@@ -5,8 +5,12 @@ import { Edit2, Check } from 'lucide-react';
 import Clock from './Clock';
 import { getUserSettings, updateUserSettings } from '@/lib/settingsUtils';
 
-export default function GreetingSection() {
-    const [name, setName] = useState('OPX');
+interface GreetingSectionProps {
+    hideGreeting?: boolean;
+}
+
+export default function GreetingSection({ hideGreeting = false }: GreetingSectionProps) {
+    const [name, setName] = useState('User');
     const [isEditing, setIsEditing] = useState(false);
     const [greeting, setGreeting] = useState('');
     const [dateString, setDateString] = useState('');
@@ -47,38 +51,40 @@ export default function GreetingSection() {
 
     return (
         <div className="flex-1 min-w-0 md:min-w-[280px]">
-            <div className="flex items-center gap-3 mb-1 md:mb-2 group">
-                <h1 className="text-2xl md:text-4xl font-bold text-white whitespace-nowrap">
-                    {greeting},
-                </h1>
-                {isEditing ? (
-                    <div className="flex items-center gap-2">
-                        <input
-                            autoFocus
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                            onBlur={handleSave}
-                            className="bg-transparent text-2xl md:text-4xl font-bold text-accent-blue focus:outline-none border-b-2 border-accent-blue w-[120px] md:w-[150px]"
-                        />
-                        <button onClick={handleSave} className="p-1 hover:bg-white/10 rounded-full text-emerald-400">
-                            <Check size={24} />
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-3">
-                        <span className="text-2xl md:text-4xl font-bold text-accent-blue truncate max-w-[150px] md:max-w-[200px]">
-                            {name}
-                        </span>
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
-                        >
-                            <Edit2 size={16} />
-                        </button>
-                    </div>
-                )}
-            </div>
+            {!hideGreeting && (
+                <div className="flex items-center gap-3 mb-1 md:mb-2 group">
+                    <h1 className="text-2xl md:text-4xl font-bold text-white whitespace-nowrap">
+                        {greeting},
+                    </h1>
+                    {isEditing ? (
+                        <div className="flex items-center gap-2">
+                            <input
+                                autoFocus
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                                onBlur={handleSave}
+                                className="bg-transparent text-2xl md:text-4xl font-bold text-accent-blue focus:outline-none border-b-2 border-accent-blue w-[120px] md:w-[150px]"
+                            />
+                            <button onClick={handleSave} className="p-1 hover:bg-white/10 rounded-full text-emerald-400">
+                                <Check size={24} />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl md:text-4xl font-bold text-accent-blue truncate max-w-[150px] md:max-w-[200px]">
+                                {name}
+                            </span>
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="flex items-center gap-3 text-text-secondary text-sm md:text-lg">
                 <span>{dateString}</span>

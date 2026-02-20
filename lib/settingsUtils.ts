@@ -10,8 +10,7 @@ export type UserSettings = {
     updated_at: string;
 };
 
-// Ensure we always work with ID 1 (Virtual ID for frontend compatibility)
-const SETTINGS_ID = 1;
+// User Settings now rely on Supabase RLS and the authenticated user structure
 
 export async function getUserSettings(): Promise<UserSettings | null> {
     const { data, error } = await supabase
@@ -26,8 +25,7 @@ export async function getUserSettings(): Promise<UserSettings | null> {
     // Transform key-value rows into UserSettings object
     // Default values
     const settings: any = {
-        id: SETTINGS_ID,
-        user_name: 'OPX',
+        user_name: 'User',
         banner_url: null,
         sidebar_top_url: null,
         sidebar_url: null,
@@ -49,10 +47,17 @@ export async function getUserSettings(): Promise<UserSettings | null> {
 }
 
 export async function updateUserSettings(updates: Partial<UserSettings>): Promise<UserSettings | null> {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+        console.error('User not authenticated');
+        return null;
+    }
+
     // Convert updates object to array of key-value rows
     const updatesToUpsert = Object.entries(updates)
         .filter(([key]) => ['user_name', 'banner_url', 'sidebar_top_url', 'sidebar_url', 'sidebar_bottom_url'].includes(key))
         .map(([key, value]) => ({
+            user_id: user.id,
             key,
             value: value as string | null,
             updated_at: new Date().toISOString()

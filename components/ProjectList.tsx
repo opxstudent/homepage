@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, Fragment } from 'react';
 import { Project, Task } from './ProjectsDashboard';
-import { MoreHorizontal, CheckCircle2, Circle, Clock, ChevronDown, ChevronRight } from 'lucide-react';
+import { MoreHorizontal, CheckCircle2, Circle, Clock, ChevronDown, ChevronRight, Edit2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 
 import { Plus } from 'lucide-react';
@@ -21,11 +21,13 @@ export default function ProjectList({ project, tasks, onUpdateTask, onAddTask, o
     const doneTasks = tasks.filter(t => t.status === 'done');
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
+    const [newDue, setNewDue] = useState('');
 
     const handleAddTask = () => {
         if (!newTitle.trim()) return;
-        onAddTask('todo', newTitle.trim(), null);
+        onAddTask('todo', newTitle.trim(), newDue || null);
         setNewTitle('');
+        setNewDue('');
         setIsAdding(false);
     };
 
@@ -69,9 +71,15 @@ export default function ProjectList({ project, tasks, onUpdateTask, onAddTask, o
                             placeholder="What needs to be done?"
                             className="w-full bg-[#2a2a2c] rounded-lg px-4 py-3 text-white placeholder:text-text-secondary focus:outline-none border border-transparent focus:border-emerald-500/50 mb-3"
                         />
+                        <input
+                            type="date"
+                            value={newDue}
+                            onChange={(e) => setNewDue(e.target.value)}
+                            className="w-full bg-[#2a2a2c] rounded-lg px-4 py-3 text-text-secondary focus:outline-none border border-transparent focus:border-emerald-500/50 mb-3"
+                        />
                         <div className="flex justify-end gap-2">
                             <button
-                                onClick={() => setIsAdding(false)}
+                                onClick={() => { setIsAdding(false); setNewTitle(''); setNewDue(''); }}
                                 className="px-4 py-2 text-text-secondary hover:text-white"
                             >
                                 Cancel
@@ -123,63 +131,142 @@ function TaskGroup({ title, tasks, color, onUpdateTask }: { title: string; tasks
 
 function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Props['onUpdateTask'] }) {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState(task.title);
+    const [editDue, setEditDue] = useState(task.due_date ? task.due_date.slice(0, 10) : '');
 
     const handleStatusChange = (status: Task['status']) => {
         onUpdateTask(task.id, { status });
         setMenuOpen(false);
     };
 
+    function handleSaveEdit() {
+        if (!editTitle.trim()) return;
+        const patch: Partial<Task> = {};
+        if (editTitle.trim() !== task.title) patch.title = editTitle.trim();
+        const due = editDue ? editDue : null;
+        if (due !== (task.due_date ? task.due_date.slice(0, 10) : null)) patch.due_date = due;
+
+        if (Object.keys(patch).length > 0) {
+            onUpdateTask(task.id, patch);
+        }
+        setIsEditing(false);
+    }
+
     return (
-        <div className="bg-[#202022] border border-[#323234] rounded-xl p-4 relative active:scale-[0.99] transition-transform">
-            <div className="flex justify-between items-start gap-4">
-                <div className="flex-1">
-                    <h3 className={`text-base font-medium text-white mb-1 ${task.status === 'done' ? 'line-through text-text-secondary' : ''}`}>
-                        {task.title}
-                    </h3>
-                    {task.due_date && (
-                        <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-1">
-                            <Clock size={12} />
-                            <span>{new Date(task.due_date).toLocaleDateString()}</span>
-                        </div>
-                    )}
+        <React.Fragment>
+            <div className="bg-[#202022] border border-[#323234] rounded-xl p-4 relative active:scale-[0.99] transition-transform">
+                <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                        <h3 className={`text-base font-medium text-white mb-1 ${task.status === 'done' ? 'line-through text-text-secondary' : ''}`}>
+                            {task.title}
+                        </h3>
+                        {task.due_date && (
+                            <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-1">
+                                <Clock size={12} />
+                                <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        className="p-2 -mr-2 -mt-2 text-text-secondary hover:text-white"
+                    >
+                        <MoreHorizontal size={20} />
+                    </button>
                 </div>
-                <button
-                    onClick={() => setMenuOpen(!menuOpen)}
-                    className="p-2 -mr-2 -mt-2 text-text-secondary hover:text-white"
-                >
-                    <MoreHorizontal size={20} />
-                </button>
+
+                {/* Status Dropdown */}
+                {menuOpen && (
+                    <React.Fragment>
+                        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                        <div className="absolute right-0 top-8 z-20 w-48 bg-[#2a2a2c] border border-[#3a3a3c] rounded-xl shadow-2xl overflow-hidden py-1">
+                            <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-[#3a3a3c]">
+                                Move to...
+                            </div>
+                            <button
+                                onClick={() => handleStatusChange('todo')}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
+                            >
+                                <Circle size={16} /> To Do
+                            </button>
+                            <button
+                                onClick={() => handleStatusChange('in_progress')}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-400 hover:bg-white/5 hover:text-blue-300 transition-colors"
+                            >
+                                <Clock size={16} /> In Progress
+                            </button>
+                            <button
+                                onClick={() => handleStatusChange('done')}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-emerald-400 hover:bg-white/5 hover:text-emerald-300 transition-colors"
+                            >
+                                <CheckCircle2 size={16} /> Done
+                            </button>
+                            <div className="border-t border-[#3a3a3c] my-1" />
+                            <button
+                                onClick={() => {
+                                    setMenuOpen(false);
+                                    setEditTitle(task.title);
+                                    setEditDue(task.due_date ? task.due_date.slice(0, 10) : '');
+                                    setIsEditing(true);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
+                            >
+                                <Edit2 size={16} /> Edit
+                            </button>
+                        </div>
+                    </React.Fragment>
+                )}
             </div>
 
-            {/* Status Dropdown */}
-            {menuOpen && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                    <div className="absolute right-0 top-8 z-20 w-48 bg-[#2a2a2c] border border-[#3a3a3c] rounded-xl shadow-2xl overflow-hidden py-1">
-                        <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-[#3a3a3c]">
-                            Move to...
+            {/* Edit modal */}
+            {isEditing && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div className="bg-[#202022] rounded-2xl p-6 w-full max-w-sm border border-[#323234] shadow-xl">
+                        <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-base font-semibold text-white">Edit Task</h3>
+                            <button onClick={() => setIsEditing(false)} className="text-text-secondary hover:text-white">
+                                <X size={16} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => handleStatusChange('todo')}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
-                        >
-                            <Circle size={16} /> To Do
-                        </button>
-                        <button
-                            onClick={() => handleStatusChange('in_progress')}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-400 hover:bg-white/5 hover:text-blue-300 transition-colors"
-                        >
-                            <Clock size={16} /> In Progress
-                        </button>
-                        <button
-                            onClick={() => handleStatusChange('done')}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-emerald-400 hover:bg-white/5 hover:text-emerald-300 transition-colors"
-                        >
-                            <CheckCircle2 size={16} /> Done
-                        </button>
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="text-xs text-text-secondary block mb-1.5">Title</label>
+                                <input
+                                    autoFocus
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-text-secondary block mb-1.5">Due Date</label>
+                                <input
+                                    type="date"
+                                    value={editDue}
+                                    onChange={e => setEditDue(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="px-4 py-2 bg-[#323234] hover:bg-[#3a3a3c] text-white rounded-lg text-sm transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={!editTitle.trim()}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                            >
+                                Save
+                            </button>
+                        </div>
                     </div>
-                </>
+                </div>
             )}
-        </div>
+        </React.Fragment>
     );
 }

@@ -28,12 +28,16 @@ export default function Scratchpad() {
     const saveScratchpad = useCallback(async (text: string) => {
         setIsSaving(true);
 
-        const { error } = await supabase
-            .from('quick_notes')
-            .upsert({ id: 'scratchpad', content: text });
+        const { data: { user } } = await supabase.auth.getUser();
 
-        if (error) {
-            console.error('Error saving scratchpad:', error);
+        if (user) {
+            const { error } = await supabase
+                .from('quick_notes')
+                .upsert({ user_id: user.id, id: 'scratchpad', content: text });
+
+            if (error) {
+                console.error('Error saving scratchpad:', error);
+            }
         }
 
         setIsSaving(false);

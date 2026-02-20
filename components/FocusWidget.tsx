@@ -58,7 +58,9 @@ export default function FocusWidget({ mode = 'all' }: FocusWidgetProps) {
 
     // Split items into sections
     const currentYear = new Date().getFullYear();
-    const currentYearGoals = items.filter(i => i.project.type === 'goal' && i.project.goal_year === currentYear);
+    const currentYearGoals = items
+        .filter(i => i.project.type === 'goal' && i.project.goal_year === currentYear)
+        .sort((a, b) => (a.project.category || '').localeCompare(b.project.category || ''));
     const activeProjects = items.filter(i => i.project.type === 'project');
 
     if (currentYearGoals.length === 0 && activeProjects.length === 0) return null;

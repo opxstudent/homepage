@@ -208,11 +208,11 @@ export default function UnifiedCalendar() {
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-                    initialView="dayGridMonth"
+                    initialView="listWeek"
                     headerToolbar={{
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'dayGridMonth,timeGridWeek,listWeek'
+                        right: 'listWeek,dayGridMonth'
                     }}
                     events={filteredEvents}
                     height="100%"

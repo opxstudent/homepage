@@ -46,6 +46,16 @@ export type FitnessStats = {
     consistency: { date: string; count: number; categories: string[]; level: number }[];
 };
 
+export function getRPEColor(rpe: number | null | undefined): string {
+    if (!rpe || rpe < 6) return 'text-text-secondary';
+    if (rpe === 6) return 'text-emerald-400';
+    if (rpe === 7) return 'text-yellow-400';
+    if (rpe === 8) return 'text-orange-400';
+    if (rpe === 9) return 'text-red-400';
+    if (rpe >= 10) return 'text-red-600 font-bold';
+    return 'text-text-secondary';
+}
+
 export async function getWorkoutGroups(): Promise<WorkoutGroup[]> {
     const { data, error } = await supabase
         .from('workout_groups')
@@ -145,20 +155,33 @@ export async function logSet(log: Omit<WorkoutLog, 'id' | 'date' | 'is_pr'>): Pr
 }
 
 export async function getPreviousLog(exerciseId: string, setNumber: number): Promise<WorkoutLog | null> {
-    const { data, error } = await supabase
+    // 1. Get the most recent date this exercise was performed
+    const { data: recentDateData, error: dateError } = await supabase
         .from('workout_logs')
-        .select('*')
+        .select('date')
         .eq('exercise_id', exerciseId)
-        .eq('set_number', setNumber)
         .order('date', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-    if (error) {
-        // console.error('Error fetching prev log:', error);
-        return null;
-    }
-    return data;
+    if (dateError || !recentDateData) return null;
+
+    // 2. Fetch all sets from that date
+    const { data: sessionLogs, error: logsError } = await supabase
+        .from('workout_logs')
+        .select('*')
+        .eq('exercise_id', exerciseId)
+        .eq('date', recentDateData.date)
+        .order('set_number', { ascending: true });
+
+    if (logsError || !sessionLogs || sessionLogs.length === 0) return null;
+
+    // 3. Try to find the exact set number
+    const exactSet = sessionLogs.find(log => log.set_number === setNumber);
+    if (exactSet) return exactSet;
+
+    // 4. If exact set doesn't exist (e.g. user added a new 4th set), return the highest set they did that day
+    return sessionLogs[sessionLogs.length - 1];
 }
 
 
@@ -504,6 +527,23 @@ export async function updateRoutineExercise(
         return false;
     }
     return true;
+}
+
+export async function updateRoutineExercisesOrder(groupId: string, exerciseIds: string[]): Promise<boolean> {
+    try {
+        const updates = exerciseIds.map((exerciseId, index) => {
+            return supabase
+                .from('workout_group_exercises')
+                .update({ sort_order: index })
+                .match({ group_id: groupId, exercise_id: exerciseId });
+        });
+
+        await Promise.all(updates);
+        return true;
+    } catch (error) {
+        console.error('Error updating sort order:', error);
+        return false;
+    }
 }
 
 export async function getWorkoutHistory(limit = 50, offset = 0): Promise<WorkoutLog[]> {

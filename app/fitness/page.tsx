@@ -1,14 +1,162 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Dumbbell, Plus, Play, Calendar, Timer, Flame, TrendingUp, ChevronRight, X, LayoutGrid, Zap, Trash2, Edit2, Pencil } from 'lucide-react';
-import { getWorkoutGroups, getRoutineExercises, getAllExercises, createWorkoutGroup, createExercise, updateExercise, deleteExercise, getFitnessStats, logSet, addExerciseToRoutine, updateRoutineExercise, removeExerciseFromRoutine, deleteWorkoutGroup, WorkoutGroup, Exercise, RoutineExercise, FitnessStats } from '@/lib/fitnessUtils';
+import { ArrowLeft, Dumbbell, Plus, Play, Calendar, Timer, Flame, TrendingUp, ChevronRight, X, LayoutGrid, Zap, Trash2, Edit2, Pencil, GripVertical } from 'lucide-react';
+import { getWorkoutGroups, getRoutineExercises, getAllExercises, createWorkoutGroup, createExercise, updateExercise, deleteExercise, getFitnessStats, logSet, addExerciseToRoutine, updateRoutineExercise, removeExerciseFromRoutine, deleteWorkoutGroup, updateRoutineExercisesOrder, WorkoutGroup, Exercise, RoutineExercise, FitnessStats } from '@/lib/fitnessUtils';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import WorkoutSessionTable from '@/components/Fitness/WorkoutSessionTable';
 import FitnessStatsDashboard from '@/components/Fitness/FitnessStats';
 import WorkoutHistory from '@/components/Fitness/WorkoutHistory';
 import { v4 as uuidv4 } from 'uuid';
 
 type ViewState = 'dashboard' | 'group_select' | 'workout' | 'custom_setup' | 'free_session' | 'exercises' | 'history';
+
+function SortableExerciseRow({
+    exercise,
+    index,
+    selectedGroupId,
+    onDelete,
+    onUpdate
+}: {
+    exercise: RoutineExercise,
+    index: number,
+    selectedGroupId: string | null,
+    onDelete: (id: string) => void,
+    onUpdate: (id: string, updates: any) => Promise<void>
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: exercise.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 2 : 1,
+        opacity: isDragging ? 0.9 : 1
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="bg-[#202022] rounded-xl p-3 border border-white/5 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 group relative"
+        >
+            <div className="flex items-center gap-3 w-full md:flex-1 min-w-0">
+                <div
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab active:cursor-grabbing text-text-secondary hover:text-white shrink-0 -ml-1"
+                >
+                    <GripVertical size={16} />
+                </div>
+                <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs text-text-secondary font-mono bg-white/5 rounded-full">
+                    {index + 1}
+                </div>
+                <div className="flex-1 min-w-0 pr-4">
+                    <div className="font-bold text-white truncate">{exercise.name}</div>
+                    <div className="text-xs text-text-secondary truncate">{exercise.category}</div>
+                </div>
+                {/* Mobile Delete Button (visible on top row) */}
+                <button
+                    onClick={() => onDelete(exercise.id)}
+                    className="md:hidden p-2 text-text-secondary hover:text-red-400 shrink-0"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+
+            {/* Defaults Editor */}
+            <div className="flex flex-wrap md:flex-nowrap items-center gap-2 text-xs w-full md:w-auto justify-between md:justify-end bg-[#151516] md:bg-transparent p-2 md:p-0 rounded-lg shrink-0">
+                <div className="flex flex-col items-center w-12">
+                    <span className="text-text-secondary text-[10px] uppercase">Sets</span>
+                    <input
+                        type="number"
+                        className="w-full bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue border border-transparent hover:border-white/10 transition-colors"
+                        defaultValue={exercise.default_sets}
+                        onBlur={async (e) => {
+                            const val = parseInt(e.target.value);
+                            if (val > 0) {
+                                await onUpdate(exercise.id, { default_sets: val });
+                            }
+                        }}
+                    />
+                </div>
+                <div className="flex flex-col items-center w-12">
+                    <span className="text-text-secondary text-[10px] uppercase">Reps</span>
+                    <input
+                        type="number"
+                        className="w-full bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue border border-transparent hover:border-white/10 transition-colors"
+                        defaultValue={exercise.default_reps}
+                        onBlur={async (e) => {
+                            const val = parseInt(e.target.value);
+                            if (val > 0) {
+                                await onUpdate(exercise.id, { default_reps: val });
+                            }
+                        }}
+                    />
+                </div>
+                <div className="flex flex-col items-center w-16">
+                    <span className="text-text-secondary text-[10px] uppercase">Weight</span>
+                    <input
+                        type="number"
+                        className="w-full bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue border border-transparent hover:border-white/10 transition-colors"
+                        placeholder="-"
+                        defaultValue={exercise.default_weight ?? ''}
+                        onBlur={async (e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) {
+                                await onUpdate(exercise.id, { default_weight: val });
+                            }
+                        }}
+                    />
+                </div>
+                <div className="flex flex-col items-center w-12">
+                    <span className="text-text-secondary text-[10px] uppercase">Mins</span>
+                    <input
+                        type="number"
+                        className="w-full bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue border border-transparent hover:border-white/10 transition-colors"
+                        placeholder="-"
+                        defaultValue={exercise.default_duration_mins ?? ''}
+                        onBlur={async (e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) {
+                                await onUpdate(exercise.id, { default_duration_mins: val });
+                            }
+                        }}
+                    />
+                </div>
+                <div className="flex flex-col items-start w-full md:w-32 mt-2 md:mt-0">
+                    <span className="text-text-secondary text-[10px] uppercase md:hidden mb-1">Notes</span>
+                    <input
+                        type="text"
+                        className="w-full bg-black/20 text-left rounded p-1 text-white text-xs focus:outline-accent-blue px-2 border border-transparent hover:border-white/10 transition-colors"
+                        placeholder="Notes..."
+                        defaultValue={exercise.notes ?? ''}
+                        onBlur={async (e) => {
+                            const val = e.target.value;
+                            await onUpdate(exercise.id, { notes: val });
+                        }}
+                    />
+                </div>
+            </div>
+
+            {/* Desktop Delete Button */}
+            <button
+                onClick={() => onDelete(exercise.id)}
+                className="hidden md:block p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+            >
+                <Trash2 size={16} />
+            </button>
+        </div>
+    );
+}
 
 export default function FitnessPage() {
     const [view, setView] = useState<ViewState>('dashboard');
@@ -30,6 +178,7 @@ export default function FitnessPage() {
     // Custom/Free Creation State
     const [showAddExercise, setShowAddExercise] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [routineExerciseIdToDelete, setRoutineExerciseIdToDelete] = useState<string | null>(null);
     const [newExerciseName, setNewExerciseName] = useState('');
     const [newGroupName, setNewGroupName] = useState('');
 
@@ -39,6 +188,18 @@ export default function FitnessPage() {
     // Dashboard Selection State
     const [dashboardRoutineId, setDashboardRoutineId] = useState<string>('free');
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+    // DND Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     // Fetch initial data
     useEffect(() => {
@@ -475,129 +636,82 @@ export default function FitnessPage() {
                                     No exercises in this routine.<br /> Click "Add Exercise" to populate it.
                                 </div>
                             ) : (
-                                exercises.map((ex, idx) => (
-                                    <div key={ex.id} className="bg-[#202022] rounded-xl p-3 border border-white/5 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 group">
-                                        <div className="flex items-center gap-3 w-full md:w-auto">
-                                            <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center text-xs text-text-secondary font-mono bg-white/5 rounded-full">
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1 md:flex-none">
-                                                <div className="font-bold text-white">{ex.name}</div>
-                                                <div className="text-xs text-text-secondary">{ex.category}</div>
-                                            </div>
-                                            {/* Mobile Delete Button (visible on top row) */}
-                                            <button
-                                                onClick={async () => {
-                                                    if (selectedGroupId && confirm("Remove from routine?")) {
-                                                        const success = await removeExerciseFromRoutine(selectedGroupId, ex.id);
-                                                        if (success) {
-                                                            setExercises(exercises.filter(e => e.id !== ex.id));
-                                                        }
-                                                    }
-                                                }}
-                                                className="md:hidden p-2 text-text-secondary hover:text-red-400"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={async (event: DragEndEvent) => {
+                                        const { active, over } = event;
+                                        if (over && active.id !== over.id) {
+                                            const oldIndex = exercises.findIndex((ex) => ex.id === active.id);
+                                            const newIndex = exercises.findIndex((ex) => ex.id === over.id);
+                                            const newOrder = arrayMove(exercises, oldIndex, newIndex);
+                                            setExercises(newOrder);
 
-                                        <div className="flex-1 hidden md:block" /> {/* Spacer for desktop */}
-
-                                        {/* Defaults Editor */}
-                                        <div className="flex flex-wrap items-center gap-2 text-xs w-full md:w-auto justify-between md:justify-end bg-[#151516] md:bg-transparent p-2 md:p-0 rounded-lg">
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-text-secondary text-[10px] uppercase">Sets</span>
-                                                <input
-                                                    type="number"
-                                                    className="w-10 bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue"
-                                                    defaultValue={ex.default_sets}
-                                                    onBlur={async (e) => {
-                                                        const val = parseInt(e.target.value);
-                                                        if (val > 0 && selectedGroupId) {
-                                                            await updateRoutineExercise(selectedGroupId, ex.id, { default_sets: val });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-text-secondary text-[10px] uppercase">Reps</span>
-                                                <input
-                                                    type="number"
-                                                    className="w-12 bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue"
-                                                    defaultValue={ex.default_reps}
-                                                    onBlur={async (e) => {
-                                                        const val = parseInt(e.target.value);
-                                                        if (val > 0 && selectedGroupId) {
-                                                            await updateRoutineExercise(selectedGroupId, ex.id, { default_reps: val });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-text-secondary text-[10px] uppercase">Weight</span>
-                                                <input
-                                                    type="number"
-                                                    className="w-16 bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue"
-                                                    placeholder="-"
-                                                    defaultValue={ex.default_weight ?? ''}
-                                                    onBlur={async (e) => {
-                                                        const val = parseFloat(e.target.value);
-                                                        if (!isNaN(val) && selectedGroupId) {
-                                                            await updateRoutineExercise(selectedGroupId, ex.id, { default_weight: val });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-text-secondary text-[10px] uppercase">Mins</span>
-                                                <input
-                                                    type="number"
-                                                    className="w-12 bg-black/20 text-center rounded p-1 text-white focus:outline-accent-blue"
-                                                    placeholder="-"
-                                                    defaultValue={ex.default_duration_mins ?? ''}
-                                                    onBlur={async (e) => {
-                                                        const val = parseFloat(e.target.value);
-                                                        if (!isNaN(val) && selectedGroupId) {
-                                                            await updateRoutineExercise(selectedGroupId, ex.id, { default_duration_mins: val });
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col items-center w-full md:w-auto mt-2 md:mt-0">
-                                                <span className="text-text-secondary text-[10px] uppercase md:hidden mb-1">Notes</span>
-                                                <input
-                                                    type="text"
-                                                    className="w-full md:w-32 bg-black/20 text-left rounded p-1 text-white text-xs focus:outline-accent-blue px-2"
-                                                    placeholder="Notes..."
-                                                    defaultValue={ex.notes ?? ''}
-                                                    onBlur={async (e) => {
-                                                        const val = e.target.value;
+                                            if (selectedGroupId) {
+                                                await updateRoutineExercisesOrder(
+                                                    selectedGroupId,
+                                                    newOrder.map(e => e.id)
+                                                );
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <SortableContext
+                                        items={exercises.map(ex => ex.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <div className="space-y-3">
+                                            {exercises.map((ex, idx) => (
+                                                <SortableExerciseRow
+                                                    key={ex.id}
+                                                    exercise={ex}
+                                                    index={idx}
+                                                    selectedGroupId={selectedGroupId}
+                                                    onDelete={(id) => setRoutineExerciseIdToDelete(id)}
+                                                    onUpdate={async (id, updates) => {
                                                         if (selectedGroupId) {
-                                                            await updateRoutineExercise(selectedGroupId, ex.id, { notes: val });
+                                                            await updateRoutineExercise(selectedGroupId, id, updates);
                                                         }
                                                     }}
                                                 />
-                                            </div>
+                                            ))}
                                         </div>
-
-                                        {/* Desktop Delete Button */}
-                                        <button
-                                            onClick={async () => {
-                                                if (selectedGroupId && confirm("Remove from routine?")) {
-                                                    const success = await removeExerciseFromRoutine(selectedGroupId, ex.id);
-                                                    if (success) {
-                                                        setExercises(exercises.filter(e => e.id !== ex.id));
-                                                    }
-                                                }
-                                            }}
-                                            className="hidden md:block p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))
+                                    </SortableContext>
+                                </DndContext>
                             )}
                         </div>
+
+                        {/* Exercise Delete Confirmation Modal */}
+                        {routineExerciseIdToDelete && (
+                            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                                <div className="bg-[#202022] border border-[#323234] rounded-xl p-4 w-full max-w-sm text-center shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                                    <h4 className="text-white font-semibold mb-2">Remove Exercise?</h4>
+                                    <p className="text-xs text-text-secondary mb-4">Are you sure you want to remove this exercise from the routine?</p>
+                                    <div className="flex justify-center gap-3">
+                                        <button
+                                            onClick={() => setRoutineExerciseIdToDelete(null)}
+                                            className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-[#323234] hover:bg-[#3e3e40] transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (selectedGroupId && routineExerciseIdToDelete) {
+                                                    const success = await removeExerciseFromRoutine(selectedGroupId, routineExerciseIdToDelete);
+                                                    if (success) {
+                                                        setExercises(exercises.filter(e => e.id !== routineExerciseIdToDelete));
+                                                    }
+                                                }
+                                                setRoutineExerciseIdToDelete(null);
+                                            }}
+                                            className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-text-secondary">

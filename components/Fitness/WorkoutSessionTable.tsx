@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2, Plus, Save, Check, Trophy, MoreHorizontal, Dumbbell } from 'lucide-react';
-import { RoutineExercise, WorkoutLog, getPreviousLog } from '@/lib/fitnessUtils';
+import { RoutineExercise, WorkoutLog, getPreviousLog, getRPEColor } from '@/lib/fitnessUtils';
 
 // --- Single Set Row Component ---
 function SetRow({
@@ -84,47 +84,47 @@ function SetRow({
             </div>
 
             {/* Previous */}
-            <div className="col-span-2 text-xs text-text-secondary text-center flex flex-col justify-center">
+            <div className="col-span-2 text-xs text-text-secondary text-left flex flex-col justify-center">
                 {prevLog ? (
-                    <>
+                    <div className="flex flex-col">
                         <span className="text-white/70">{prevLog.weight}kg</span>
                         <span className="opacity-50 text-[10px]">{prevLog.reps}x</span>
-                    </>
+                    </div>
                 ) : (
                     <span>-</span>
                 )}
             </div>
 
             {/* Weight */}
-            <div className="col-span-2">
+            <div className="col-span-2 pr-4">
                 <input
                     type="number"
                     placeholder={(defaultValues.weight || '-').toString()}
                     value={weight}
                     onChange={(e) => setWeight(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    className={`w-full bg-transparent text-center border-b ${isCompleted ? 'border-accent-green/50 text-accent-green' : 'border-white/10 text-white'} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto`}
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto transition-colors`}
                 />
             </div>
 
             {/* Reps */}
-            <div className="col-span-2">
+            <div className="col-span-2 pr-4">
                 <input
                     type="number"
                     placeholder={(defaultValues.reps || '-').toString()}
                     value={reps}
                     onChange={(e) => setReps(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    className={`w-full bg-transparent text-center border-b ${isCompleted ? 'border-accent-green/50 text-accent-green' : 'border-white/10 text-white'} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto`}
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto transition-colors`}
                 />
             </div>
 
             {/* RPE */}
-            <div className="col-span-1">
+            <div className="col-span-1 pr-2">
                 <input
                     type="number"
                     placeholder="-"
                     value={rpe}
                     onChange={(e) => setRpe(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    className="w-full bg-transparent text-center border-b border-white/10 text-white focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto"
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${rpe !== '' ? getRPEColor(Number(rpe)) : (isCompleted ? 'text-accent-green font-bold' : 'text-white')} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto transition-colors`}
                 />
             </div>
 
@@ -170,28 +170,29 @@ function ExerciseCard({
 
     // State for number of sets (default from routine)
     const [numSets, setNumSets] = useState(exercise.default_sets || 3);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     return (
         <div
             ref={setNodeRef}
             style={style}
-            className="bg-[#1a1a1c] border border-white/5 rounded-xl overflow-hidden group mb-4"
+            className="bg-[#1a1a1c] border border-white/5 rounded-xl overflow-hidden group mb-4 relative"
         >
             {/* Header */}
             <div className="flex items-center justify-between p-3 bg-white/5 border-b border-white/5">
-                <div className="flex items-center gap-3 overflow-hidden">
-                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-text-secondary hover:text-white">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-text-secondary hover:text-white shrink-0">
                         <GripVertical size={16} />
                     </div>
-                    <span className="font-bold text-white truncate text-base">{exercise.name}</span>
+                    <span className="font-bold text-white truncate text-base shrink block">{exercise.name}</span>
                     {exercise.personal_record && (
-                        <span className="text-[10px] text-accent-date flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] text-accent-date flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full shrink-0">
                             <Trophy size={10} /> {exercise.personal_record}kg
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => onDelete(exercise.id)} className="text-text-secondary hover:text-red-400 p-1">
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <button onClick={() => setShowDeleteConfirm(true)} className="text-text-secondary hover:text-red-400 p-1">
                         <Trash2 size={16} />
                     </button>
                 </div>
@@ -200,11 +201,11 @@ function ExerciseCard({
             {/* Column Headers for Sets */}
             <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[10px] font-bold text-text-secondary uppercase tracking-wider bg-[#151516]">
                 <div className="col-span-1 text-center">Set</div>
-                <div className="col-span-2 text-center">Prev</div>
-                <div className="col-span-2 text-center">kg</div>
-                <div className="col-span-2 text-center">Reps</div>
-                <div className="col-span-1 text-center">RPE</div>
-                <div className="col-span-4">Notes</div>
+                <div className="col-span-2 text-left">Prev</div>
+                <div className="col-span-2 text-left">kg</div>
+                <div className="col-span-2 text-left">Reps</div>
+                <div className="col-span-1 text-left">RPE</div>
+                <div className="col-span-4 text-left">Notes</div>
             </div>
 
             {/* Sets */}
@@ -239,6 +240,33 @@ function ExerciseCard({
                     <Plus size={14} /> Add Set
                 </button>
             </div>
+
+            {/* Delete Confirmation Modal Overlay */}
+            {showDeleteConfirm && (
+                <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#202022] border border-[#323234] rounded-xl p-4 w-full max-w-sm text-center shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                        <h4 className="text-white font-semibold mb-2">Remove Exercise?</h4>
+                        <p className="text-xs text-text-secondary mb-4">Are you sure you want to remove this exercise from the current routine?</p>
+                        <div className="flex justify-center gap-3">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-[#323234] hover:bg-[#3e3e40] transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowDeleteConfirm(false);
+                                    onDelete(exercise.id);
+                                }}
+                                className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

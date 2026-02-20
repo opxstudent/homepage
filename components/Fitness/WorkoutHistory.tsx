@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getWorkoutHistory, updateWorkoutLog, deleteWorkoutLog, deleteWorkoutSession, getAllExercises, logSet, WorkoutLog, Exercise } from '@/lib/fitnessUtils';
+import { getWorkoutHistory, updateWorkoutLog, deleteWorkoutLog, deleteWorkoutSession, getAllExercises, logSet, getRPEColor, WorkoutLog, Exercise } from '@/lib/fitnessUtils';
 import { Calendar, ChevronDown, ChevronRight, Dumbbell, Clock, Flame, Edit2, Check, X, Trash2, AlertTriangle, Plus } from 'lucide-react';
 
 interface GroupedSession {
@@ -45,6 +45,7 @@ export default function WorkoutHistory() {
         duration_mins: '',
         notes: ''
     });
+
 
     useEffect(() => {
         loadHistory();
@@ -414,8 +415,9 @@ export default function WorkoutHistory() {
                                                             <div className="col-span-3 md:col-span-2 text-text-secondary flex items-center">
                                                                 {log.reps ? `${log.reps} reps` : '-'}
                                                             </div>
-                                                            <div className="col-span-2 md:col-span-1 text-text-secondary flex items-center">
-                                                                <span className="md:hidden text-[9px] uppercase mr-1">RPE</span> {log.rpe ?? '-'}
+                                                            <div className="col-span-2 md:col-span-1 flex items-center">
+                                                                <span className="md:hidden text-[9px] uppercase mr-1 text-text-secondary">RPE</span>
+                                                                <span className={getRPEColor(log.rpe)}>{log.rpe ?? '-'}</span>
                                                             </div>
                                                             <div className="col-span-2 md:col-span-2 text-text-secondary flex items-center">
                                                                 <span className="md:hidden text-[9px] uppercase mr-1">Time</span> {log.duration_mins ? `${log.duration_mins}m` : '-'}

@@ -329,7 +329,7 @@ export default function WorkoutHistory() {
 
                                         <div className="space-y-1">
                                             {exLogs.map((log: WorkoutLog) => (
-                                                <div key={log.id} className="flex flex-col md:grid md:grid-cols-12 gap-2 text-xs py-2 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded -mx-2 bg-[#1a1a1c]/50 items-start md:items-center group">
+                                                <div key={log.id} className="text-xs py-2 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 rounded -mx-2 bg-[#1a1a1c]/50 group relative">
                                                     {editingLogId === log.id ? (
                                                         // Editing Mode
                                                         <div className="w-full grid grid-cols-12 gap-2">

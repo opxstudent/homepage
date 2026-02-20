@@ -208,11 +208,18 @@ export default function UnifiedCalendar() {
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-                    initialView="listWeek"
+                    initialView="upcomingWeek"
+                    views={{
+                        upcomingWeek: {
+                            type: 'list',
+                            duration: { days: 14 },
+                            buttonText: 'Agenda'
+                        }
+                    }}
                     headerToolbar={{
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'listWeek,dayGridMonth'
+                        right: 'upcomingWeek,dayGridMonth'
                     }}
                     events={filteredEvents}
                     height="100%"
@@ -227,6 +234,14 @@ export default function UnifiedCalendar() {
                     slotMaxTime="22:00:00"
                     allDaySlot={true}
                     buttonText={{ today: 'Today', month: 'Month', week: 'Week', list: 'Agenda' }}
+                    listDayFormat={(info: any) => {
+                        const date = info.date.marker || info.date; // Support different internal references
+                        const m = date.toLocaleString('en-US', { month: 'short' });
+                        const d = date.getDate();
+                        const w = date.toLocaleString('en-US', { weekday: 'short' });
+                        return `${m} ${d}, ${w}`;
+                    }}
+                    listDaySideFormat={false}
                 />
             </div>
 

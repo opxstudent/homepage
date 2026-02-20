@@ -61,3 +61,15 @@ input[type=number] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
+
+/* FullCalendar Agenda Date Header Overrides */
+.fc-theme-standard .fc-list-day-cushion {
+  padding: 6px 12px !important;
+  background-color: #252527 !important;
+}
+
+.fc .fc-list-day-text {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+}

@@ -546,6 +546,28 @@ export async function updateRoutineExercisesOrder(groupId: string, exerciseIds: 
     }
 }
 
+export async function getAllWorkoutLogs(): Promise<WorkoutLog[]> {
+    const { data, error } = await supabase
+        .from('workout_logs')
+        .select(`
+            *,
+            exercise:exercises (
+                name,
+                category
+            )
+        `)
+        .order('date', { ascending: false })
+        .order('exercise_id')
+        .order('set_number');
+
+    if (error) {
+        console.error('Error fetching all workout logs:', error);
+        return [];
+    }
+
+    return data as any;
+}
+
 export async function getWorkoutHistory(limit = 50, offset = 0): Promise<WorkoutLog[]> {
     const { data, error } = await supabase
         .from('workout_logs')

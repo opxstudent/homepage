@@ -304,7 +304,18 @@ export default function UnifiedCalendar() {
                 .calendar-container .fc-day-today .fc-daygrid-day-number { color: #3B82F6; font-weight: 600; }
                 .calendar-container .fc-event { border: none; font-size: 10px; margin-bottom: 1px; }
                 .calendar-container .fc-list-day-cushion { background: #2A2A2C; color: rgba(255,255,255,0.7); }
-                .calendar-container .fc-list-event:hover { background: rgba(255,255,255,0.02) !important; }
+                .calendar-container .fc-list-event:hover td,
+                .calendar-container .fc-list-day:hover td,
+                .calendar-container .fc-list-event:hover {
+                    background: transparent !important;
+                    background-color: transparent !important;
+                }
+                .calendar-container .fc-daygrid-event:hover,
+                .calendar-container .fc-timegrid-event:hover,
+                .calendar-container .fc-daygrid-more-link:hover {
+                    background: transparent !important;
+                    background-color: transparent !important;
+                }
                 .calendar-container .fc-timegrid-slot { height: 2.5em; }
                 .calendar-container .fc-timegrid-slot-label { font-size: 10px; color: rgba(255,255,255,0.4); }
             `}</style>

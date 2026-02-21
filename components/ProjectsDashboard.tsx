@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase-client';
 import { Plus, FolderOpen, Target, Archive, Trash2, X, CheckCircle2, MoreHorizontal, ArchiveRestore, ChevronDown, ChevronRight } from 'lucide-react';
 import KanbanBoard from './KanbanBoard';
 import ProjectList from './ProjectList';
+import ChecklistView from './ChecklistView';
 
 export interface Project {
     id: string;
@@ -39,6 +40,7 @@ export default function ProjectsDashboard() {
     const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
     const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
     const [showArchived, setShowArchived] = useState(false);
+    const [viewMode, setViewMode] = useState<'kanban' | 'checklist'>('kanban');
 
     useEffect(() => { fetchAll(); }, []);
 
@@ -314,13 +316,25 @@ export default function ProjectsDashboard() {
                 {selectedProject ? (
                     <>
                         <div className="hidden md:block h-full">
-                            <KanbanBoard
-                                project={selectedProject}
-                                tasks={selectedTasks}
-                                onTasksChange={handleTasksChange}
-                                onAddTask={addTask}
-                                onRefresh={fetchAll}
-                            />
+                            {viewMode === 'kanban' ? (
+                                <KanbanBoard
+                                    project={selectedProject}
+                                    tasks={selectedTasks}
+                                    onTasksChange={handleTasksChange}
+                                    onAddTask={addTask}
+                                    onRefresh={fetchAll}
+                                    onToggleView={setViewMode}
+                                />
+                            ) : (
+                                <ChecklistView
+                                    project={selectedProject}
+                                    tasks={selectedTasks}
+                                    onTasksChange={handleTasksChange}
+                                    onAddTask={addTask}
+                                    onRefresh={fetchAll}
+                                    onToggleView={setViewMode}
+                                />
+                            )}
                         </div>
                         <div className="block md:hidden h-full">
                             <ProjectList

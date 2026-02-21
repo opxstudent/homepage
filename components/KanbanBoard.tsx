@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase-client';
 import { Project, Task } from './ProjectsDashboard';
 import KanbanColumn from './KanbanColumn';
 import KanbanCard from './KanbanCard';
+import { LayoutGrid, ListTodo } from 'lucide-react';
 
 const COLUMNS: { id: Task['status']; label: string }[] = [
     { id: 'todo', label: 'To Do' },
@@ -31,9 +32,10 @@ interface Props {
     onTasksChange: (tasks: Task[]) => void;
     onAddTask: (status: Task['status'], title: string, dueDate: string | null) => void;
     onRefresh: () => void;
+    onToggleView: (view: 'kanban' | 'checklist') => void;
 }
 
-export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, onRefresh }: Props) {
+export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, onRefresh, onToggleView }: Props) {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
     const sensors = useSensors(
@@ -104,20 +106,38 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, 
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-5 border-b border-[#323234] flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <h1 className="text-xl font-semibold text-white">{project.title}</h1>
-                    {project.type === 'goal' && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                            {project.goal_year} Goal
-                        </span>
-                    )}
+            <div className="px-8 py-5 border-b border-[#323234] flex-shrink-0 flex items-center justify-between">
+                <div>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-xl font-semibold text-white">{project.title}</h1>
+                        {project.type === 'goal' && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                                {project.goal_year} Goal
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-text-secondary text-sm mt-0.5">
+                        {tasks.length} {project.type === 'goal' ? 'step' : 'task'}{tasks.length !== 1 ? 's' : ''}
+                        {' · '}
+                        {tasks.filter(t => t.status === 'done').length} done
+                    </p>
                 </div>
-                <p className="text-text-secondary text-sm mt-0.5">
-                    {tasks.length} {project.type === 'goal' ? 'step' : 'task'}{tasks.length !== 1 ? 's' : ''}
-                    {' · '}
-                    {tasks.filter(t => t.status === 'done').length} done
-                </p>
+
+                <div className="flex bg-[#2a2a2c] rounded-lg p-0.5">
+                    <button
+                        className="p-1.5 rounded-md bg-[#3a3a3c] text-white shadow-sm"
+                        title="Kanban View"
+                    >
+                        <LayoutGrid size={16} />
+                    </button>
+                    <button
+                        onClick={() => onToggleView('checklist')}
+                        className="p-1.5 rounded-md text-text-secondary hover:text-white transition-all"
+                        title="Checklist View"
+                    >
+                        <ListTodo size={16} />
+                    </button>
+                </div>
             </div>
 
             {/* Kanban columns */}

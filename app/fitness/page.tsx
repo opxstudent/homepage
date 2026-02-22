@@ -487,12 +487,12 @@ export default function FitnessPage() {
                     onReorder={setExercises}
                     onDelete={(id) => setExercises(exercises.filter(e => e.id !== id))}
                     onLogSet={async (data) => {
-                        const { newPR } = await logSet(data);
+                        const { log, newPR } = await logSet(data);
                         if (newPR) {
                             loadInitialData(); // Refresh stats on PR
                             // Also update local state PR if needed
                         }
-                        return newPR;
+                        return log?.id;
                     }}
                 />
             </div>

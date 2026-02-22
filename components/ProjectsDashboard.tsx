@@ -26,6 +26,8 @@ export interface Task {
     title: string;
     status: 'todo' | 'in_progress' | 'done';
     due_date: string | null;
+    start_date: string | null;
+    end_date: string | null;
     order: number;
 }
 
@@ -137,7 +139,7 @@ export default function ProjectsDashboard() {
         ]);
     }
 
-    async function addTask(status: Task['status'], title: string, dueDate: string | null) {
+    async function addTask(status: Task['status'], title: string, dueDate: string | null, startDate: string | null = null, endDate: string | null = null) {
         if (!selectedId) return;
         const projectTasks = tasks.filter(t => t.project_id === selectedId);
         const colTasks = projectTasks.filter(t => t.status === status);
@@ -147,6 +149,8 @@ export default function ProjectsDashboard() {
             title,
             status,
             due_date: dueDate || null,
+            start_date: startDate || null,
+            end_date: endDate || null,
             order: colTasks.length,
         }).select().single();
 

@@ -4,6 +4,7 @@ import React, { useState, Fragment } from 'react';
 import { Project, Task } from './ProjectsDashboard';
 import { MoreHorizontal, CheckCircle2, Circle, Clock, ChevronDown, ChevronRight, Edit2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { toUTCISO, formatLocalTime } from '@/lib/dateUtils';
 
 import { Plus } from 'lucide-react';
 
@@ -11,7 +12,7 @@ interface Props {
     project: Project;
     tasks: Task[];
     onUpdateTask: (id: string, patch: Partial<Task>) => void;
-    onAddTask: (status: Task['status'], title: string, dueDate: string | null) => void;
+    onAddTask: (status: Task['status'], title: string, dueDate: string | null, startDate: string | null, endDate: string | null) => void;
     onBack: () => void;
 }
 
@@ -22,15 +23,30 @@ export default function ProjectList({ project, tasks, onUpdateTask, onAddTask, o
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newDue, setNewDue] = useState('');
+    const [newStart, setNewStart] = useState(''); // Time string "HH:mm"
+    const [newEnd, setNewEnd] = useState('');     // Time string "HH:mm"
 
     const handleAddTask = () => {
         if (!newTitle.trim()) return;
-        onAddTask('todo', newTitle.trim(), newDue || null);
+
+        const dueDate = newDue || null;
+        let startDate = null;
+        let endDate = null;
+
+        if (dueDate) {
+            startDate = toUTCISO(dueDate, newStart);
+            endDate = toUTCISO(dueDate, newEnd);
+        }
+
+        onAddTask('todo', newTitle.trim(), dueDate, startDate, endDate);
+
+        // Reset state
         setNewTitle('');
         setNewDue('');
+        setNewStart('');
+        setNewEnd('');
         setIsAdding(false);
     };
-
     return (
         <div className="flex flex-col h-full bg-surface/50">
             {/* Header */}
@@ -71,15 +87,38 @@ export default function ProjectList({ project, tasks, onUpdateTask, onAddTask, o
                             placeholder="What needs to be done?"
                             className="w-full bg-[#2a2a2c] rounded-lg px-4 py-3 text-white placeholder:text-text-secondary focus:outline-none border border-transparent focus:border-emerald-500/50 mb-3"
                         />
+                        <label className="text-xs text-text-secondary block mb-1.5">Due Date (All-Day)</label>
                         <input
                             type="date"
                             value={newDue}
-                            onChange={(e) => setNewDue(e.target.value)}
+                            onChange={(e) => { setNewDue(e.target.value); if (e.target.value) { setNewStart(''); setNewEnd(''); } }}
                             className="w-full bg-[#2a2a2c] rounded-lg px-4 py-3 text-text-secondary focus:outline-none border border-transparent focus:border-emerald-500/50 mb-3"
                         />
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="text-xs text-text-secondary block mb-1.5">Start Time</label>
+                                <input
+                                    type="text"
+                                    placeholder="HH:mm"
+                                    value={newStart}
+                                    onChange={e => setNewStart(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs text-text-secondary block mb-1.5">End Time</label>
+                                <input
+                                    type="text"
+                                    placeholder="HH:mm"
+                                    value={newEnd}
+                                    onChange={e => setNewEnd(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                />
+                            </div>
+                        </div>
                         <div className="flex justify-end gap-2">
                             <button
-                                onClick={() => { setIsAdding(false); setNewTitle(''); setNewDue(''); }}
+                                onClick={() => { setIsAdding(false); setNewTitle(''); setNewDue(''); setNewStart(''); setNewEnd(''); }}
                                 className="px-4 py-2 text-text-secondary hover:text-white"
                             >
                                 Cancel
@@ -134,25 +173,35 @@ function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Prop
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(task.title);
     const [editDue, setEditDue] = useState(task.due_date ? task.due_date.slice(0, 10) : '');
+    const [editStart, setEditStart] = useState(formatLocalTime(task.start_date));
+    const [editEnd, setEditEnd] = useState(formatLocalTime(task.end_date));
 
     const handleStatusChange = (status: Task['status']) => {
         onUpdateTask(task.id, { status });
         setMenuOpen(false);
     };
-
     function handleSaveEdit() {
         if (!editTitle.trim()) return;
+
         const patch: Partial<Task> = {};
         if (editTitle.trim() !== task.title) patch.title = editTitle.trim();
-        const due = editDue ? editDue : null;
-        if (due !== (task.due_date ? task.due_date.slice(0, 10) : null)) patch.due_date = due;
 
-        if (Object.keys(patch).length > 0) {
-            onUpdateTask(task.id, patch);
+        // The base date selected in the picker (YYYY-MM-DD)
+        const datePart = editDue || null;
+        patch.due_date = datePart;
+
+        if (datePart) {
+            patch.start_date = toUTCISO(datePart, editStart);
+            patch.end_date = toUTCISO(datePart, editEnd);
+        } else {
+            // If no date is selected, we clear the specific timestamps too
+            patch.start_date = null;
+            patch.end_date = null;
         }
+
+        onUpdateTask(task.id, patch);
         setIsEditing(false);
     }
-
     return (
         <React.Fragment>
             <div className="bg-[#202022] border border-[#323234] rounded-xl p-4 relative active:scale-[0.99] transition-transform">
@@ -161,10 +210,25 @@ function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Prop
                         <h3 className={`text-base font-medium text-white mb-1 ${task.status === 'done' ? 'line-through text-text-secondary' : ''}`}>
                             {task.title}
                         </h3>
-                        {task.due_date && (
-                            <div className="flex items-center gap-1.5 text-xs text-text-secondary mt-1">
-                                <Clock size={12} />
-                                <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                        {(task.due_date || task.start_date || task.end_date) && (
+                            <div className="flex flex-col gap-1 mt-1 text-xs text-text-secondary">
+                                {task.start_date && task.end_date ? (
+                                    <div className="flex items-center gap-1.5">
+                                        <Clock size={12} />
+                                        <span>
+                                            {new Date(task.start_date).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(task.end_date).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5">
+                                        <Clock size={12} />
+                                        <span>
+                                            {task.due_date ? new Date(task.due_date).toLocaleDateString('en-GB') :
+                                                task.start_date ? new Date(task.start_date).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) :
+                                                    new Date(task.end_date!).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -208,6 +272,8 @@ function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Prop
                                     setMenuOpen(false);
                                     setEditTitle(task.title);
                                     setEditDue(task.due_date ? task.due_date.slice(0, 10) : '');
+                                    setEditStart(formatLocalTime(task.start_date));
+                                    setEditEnd(formatLocalTime(task.end_date));
                                     setIsEditing(true);
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
@@ -240,13 +306,35 @@ function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Prop
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-text-secondary block mb-1.5">Due Date</label>
+                                <label className="text-xs text-text-secondary block mb-1.5">Due Date (All-Day)</label>
                                 <input
                                     type="date"
                                     value={editDue}
-                                    onChange={e => setEditDue(e.target.value)}
+                                    onChange={e => { setEditDue(e.target.value); }}
                                     className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
                                 />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs text-text-secondary block mb-1.5">Start Time</label>
+                                    <input
+                                        type="text"
+                                        placeholder="HH:mm"
+                                        value={editStart}
+                                        onChange={e => setEditStart(e.target.value)}
+                                        className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-text-secondary block mb-1.5">End Time</label>
+                                    <input
+                                        type="text"
+                                        placeholder="HH:mm"
+                                        value={editEnd}
+                                        onChange={e => setEditEnd(e.target.value)}
+                                        className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-3 justify-end">

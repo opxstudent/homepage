@@ -79,32 +79,23 @@ export default function FocusWidget({ mode = 'all' }: FocusWidgetProps) {
             <Link
                 key={project.id}
                 href="/projects"
-                className="bg-[#202022] hover:bg-[#2a2a2c] transition-colors rounded-lg p-2 flex flex-col justify-center gap-1.5 group border border-transparent hover:border-white/5 h-full"
+                className="bg-[#202022] hover:bg-[#2a2a2c] transition-colors rounded-lg p-1.5 flex flex-col justify-center gap-1 group border border-transparent hover:border-white/5 h-full min-h-[52px]"
             >
                 <div className="flex flex-col gap-0.5 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                        <Icon size={10} className={`${iconColor} flex-shrink-0`} />
-                        <span className="text-[10px] font-mono text-text-secondary opacity-70 flex-shrink-0">{progress}%</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-white truncate leading-tight">
-                        {project.title}
-                    </span>
-                    {project.category && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${project.category === 'Career' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                project.category === 'Finance' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                    project.category === 'Health & Fitness' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                        'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                                }`}>
-                                {project.category}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <Icon size={8} className={`${iconColor} flex-shrink-0`} />
+                            <span className="text-[10px] font-medium text-white/90 truncate leading-tight">
+                                {project.title}
                             </span>
                         </div>
-                    )}
+                        <span className="text-[9px] font-mono text-text-secondary opacity-60 flex-shrink-0">{progress}%</span>
+                    </div>
                 </div>
 
-                <div className="h-0.5 w-full bg-white/5 rounded-full overflow-hidden mt-0.5">
+                <div className="h-[2px] w-full bg-white/5 rounded-full overflow-hidden mt-0.5">
                     <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
+                        className={`h-full bg-gradient-to-r ${project.type === 'goal' ? 'from-amber-500/80 to-amber-400/80' : 'from-blue-500/80 to-purple-500/80'} transition-all duration-500`}
                         style={{ width: `${progress}%` }}
                     />
                 </div>

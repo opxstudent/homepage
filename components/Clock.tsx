@@ -8,10 +8,10 @@ export default function Clock() {
     useEffect(() => {
         const updateTime = () => {
             const now = new Date();
-            setTime(now.toLocaleTimeString('en-US', {
-                hour: 'numeric',
+            setTime(now.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
                 minute: '2-digit',
-                hour12: true
+                hour12: false
             }));
         };
 

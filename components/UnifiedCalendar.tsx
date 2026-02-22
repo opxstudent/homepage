@@ -24,6 +24,9 @@ export default function UnifiedCalendar() {
     const [calendars, setCalendars] = useState<CalendarSource[]>([]);
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
+    const [nowEvent, setNowEvent] = useState<EventInput | null>(null);
+    const [nextEvent, setNextEvent] = useState<EventInput | null>(null);
+    const [pastEvent, setPastEvent] = useState<EventInput | null>(null);
 
     // Settings state
     const [newCalendar, setNewCalendar] = useState({ name: '', calendar_id: '', color: '#3B82F6' });
@@ -34,6 +37,44 @@ export default function UnifiedCalendar() {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Now & Next logic
+    useEffect(() => {
+        const updateFocus = () => {
+            const now = new Date();
+
+            // Filter out all-day events for precision timing
+            const timedEvents = events
+                .filter(e => !e.allDay && e.start)
+                .map(e => ({
+                    ...e,
+                    start: new Date(e.start as Date),
+                    end: e.end ? new Date(e.end as Date) : new Date(new Date(e.start as Date).getTime() + 3600000)
+                }))
+                .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+            const current = timedEvents.find(e => now >= e.start && now < e.end);
+            const future = timedEvents.filter(e => e.start > now);
+            const past = timedEvents.filter(e => e.end <= now).sort((a, b) => b.end.getTime() - a.end.getTime());
+
+            // Fallback for all-day events if no timed event is active
+            const allDayNow = current ? null : events.find(e => {
+                if (!e.allDay || !e.start) return false;
+                const d = new Date(e.start as Date);
+                return d.getFullYear() === now.getFullYear() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getDate() === now.getDate();
+            });
+
+            setNowEvent(current || allDayNow || null);
+            setNextEvent(future[0] || null);
+            setPastEvent(past[0] || null);
+        };
+
+        updateFocus();
+        const interval = setInterval(updateFocus, 30000); // Update every 30s
+        return () => clearInterval(interval);
+    }, [events]);
 
     const filteredEvents = events.filter(event => {
         const sourceName = event.extendedProps?.source;
@@ -77,20 +118,25 @@ export default function UnifiedCalendar() {
             const allEvents: EventInput[] = [];
 
             // 3. Fetch Tasks
-            // Fetch ALL tasks with due dates, not just today, for the calendar view
+            // Fetch ALL tasks with due dates or start dates, not just today, for the calendar view
             const { data: taskData } = await supabase
                 .from('tasks')
-                .select('id, title, due_date, status')
-                .not('due_date', 'is', null)
+                .select('id, title, due_date, start_date, end_date, status')
+                .or('due_date.not.is.null,start_date.not.is.null')
                 .neq('status', 'done');
 
             if (taskData) {
                 taskData.forEach(t => {
+                    const start = t.start_date || t.due_date;
+                    const end = t.end_date || (t.start_date ? new Date(new Date(t.start_date).getTime() + 3600000).toISOString() : null);
+                    const isAllDay = !t.start_date;
+
                     allEvents.push({
                         id: t.id,
                         title: `[Task] ${t.title}`,
-                        start: t.due_date!, // YYYY-MM-DD
-                        allDay: true,
+                        start: start!,
+                        end: end || undefined,
+                        allDay: isAllDay,
                         backgroundColor: '#F97316',
                         borderColor: '#F97316',
                         extendedProps: { source: 'Tasks', type: 'task' }
@@ -115,17 +161,46 @@ export default function UnifiedCalendar() {
 
                     vevents.forEach(vevent => {
                         const event = new ICAL.Event(vevent);
+                        const url = vevent.getFirstPropertyValue('url') || (vevent.getFirstPropertyValue('description')?.toString().match(/https?:\/\/[^\s<>"]+/g)?.[0] || null);
 
-                        allEvents.push({
-                            id: event.uid || Math.random().toString(),
-                            title: event.summary || 'Untitled',
-                            start: event.startDate.toJSDate(),
-                            end: event.endDate ? event.endDate.toJSDate() : undefined,
-                            allDay: event.startDate.isDate, // Check if it's strictly a date (no time)
-                            backgroundColor: source.color,
-                            borderColor: source.color,
-                            extendedProps: { source: source.name, type: 'event' }
-                        });
+                        if (event.isRecurring()) {
+                            const iter = event.iterator();
+                            let nextDate;
+
+                            // Prevent infinite loops by capping recurrence expansion to 6 months ahead
+                            const cutoff = new Date();
+                            cutoff.setMonth(cutoff.getMonth() + 6);
+
+                            while ((nextDate = iter.next()) && nextDate.toJSDate() < cutoff) {
+                                const startJS = nextDate.toJSDate();
+                                // Calculate duration to apply to the new instance's end date
+                                const durationSeconds = event.endDate.toUnixTime() - event.startDate.toUnixTime();
+                                const endJS = new Date(startJS.getTime() + (durationSeconds * 1000));
+
+                                allEvents.push({
+                                    id: `${event.uid}-${nextDate.toUnixTime()}`, // Make ID unique per instance
+                                    title: event.summary || 'Untitled',
+                                    start: startJS,
+                                    end: endJS,
+                                    allDay: event.startDate.isDate,
+                                    backgroundColor: source.color,
+                                    borderColor: source.color,
+                                    extendedProps: { source: source.name, type: 'event', url }
+                                });
+                            }
+                        } else {
+                            // Standard single event
+                            allEvents.push({
+                                id: event.uid || Math.random().toString(),
+                                title: event.summary || 'Untitled',
+                                start: event.startDate.toJSDate(),
+                                end: event.endDate ? event.endDate.toJSDate() : undefined,
+                                allDay: event.startDate.isDate,
+                                backgroundColor: source.color,
+                                borderColor: source.color,
+                                extendedProps: { source: source.name, type: 'event', url }
+                            });
+                        }
                     });
                 } catch (e) {
                     console.error('Error loading calendar', source.name, e);
@@ -164,23 +239,83 @@ export default function UnifiedCalendar() {
 
     return (
         <div className="bg-surface rounded-xl p-4 h-full flex flex-col">
+            {/* Focus Bridge */}
+            {(pastEvent || nowEvent || nextEvent) && (
+                <div className="mb-4 bg-white/[0.03] border border-white/5 rounded-xl overflow-hidden flex items-stretch h-12 shrink-0">
+                    {pastEvent && (
+                        <div className="flex-1 px-4 flex items-center gap-3 bg-white/[0.02] border-r border-white/5 relative overflow-hidden opacity-60">
+                            <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Last</span>
+                                <span className="text-[11px] font-semibold text-text-secondary truncate leading-tight">{pastEvent.title}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {nowEvent ? (
+                        <div className="flex-[1.2] px-4 flex items-center gap-3 bg-blue-500/15 border-r border-white/10 relative overflow-hidden shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]">
+                            <div className="absolute inset-0 bg-blue-400/10 animate-pulse-slow" />
+                            <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] animate-pulse shrink-0" />
+                            <div className="flex flex-col min-w-0 z-10">
+                                <span className="text-[9px] font-bold text-blue-300 uppercase tracking-widest leading-none mb-0.5">Now</span>
+                                <span className="text-[12px] font-bold text-white truncate leading-tight drop-shadow-sm">{nowEvent.title}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 px-4 flex items-center gap-3 border-r border-white/5 bg-white/[0.01]">
+                            <div className="w-1.5 h-1.5 rounded-full bg-white/5 shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Now</span>
+                                <span className="text-[11px] font-medium text-text-secondary/30 italic truncate leading-tight">Refresh your mind</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {nextEvent && (
+                        <div className="flex-1 px-4 flex items-center gap-3 bg-white/[0.02] relative overflow-hidden opacity-40 grayscale-[0.3] hover:opacity-60 transition-opacity">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500/40 shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Next</span>
+                                <span className="text-[11px] font-medium text-white/70 truncate leading-tight">{nextEvent.title}</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between mb-3 shrink-0">
-                <h3 className="text-base font-semibold text-white">Unified Calendar</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                    <h3 className="text-xs font-bold text-text-secondary uppercase tracking-[0.2em]">Live Context: Calendar</h3>
+                </div>
+                <div className="flex items-center gap-1.5">
                     <a
-                        href="https://calendar.google.com"
+                        href="https://calendar.google.com/calendar/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 hover:bg-[#323234] rounded-lg text-text-secondary hover:text-white transition-all"
+                        className="p-1.5 hover:bg-[#323234] rounded-lg text-text-secondary hover:text-white transition-colors"
                         title="Open Google Calendar"
                     >
                         <ExternalLink size={14} />
                     </a>
-                    <button onClick={() => setShowSettings(true)} className="p-1.5 hover:bg-[#323234] rounded-lg text-text-secondary hover:text-white">
+                    <div className="flex bg-active p-0.5 rounded-lg border border-white/5 mr-1">
+                        <button
+                            onClick={() => calendarRef.current?.getApi().changeView('upcomingWeek')}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${calendarRef.current?.getApi().view.type === 'upcomingWeek' ? 'bg-[#323234] text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
+                        >
+                            AGENDA
+                        </button>
+                        <button
+                            onClick={() => calendarRef.current?.getApi().changeView('dayGridMonth')}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${calendarRef.current?.getApi().view.type === 'dayGridMonth' ? 'bg-[#323234] text-white shadow-lg' : 'text-text-secondary hover:text-white'}`}
+                        >
+                            MONTH
+                        </button>
+                    </div>
+                    <button onClick={() => setShowSettings(true)} className="p-1.5 hover:bg-[#323234] rounded-lg text-text-secondary hover:text-white transition-colors">
                         <Settings size={14} />
                     </button>
-                    <button onClick={loadData} className="p-1.5 hover:bg-[#323234] rounded-lg text-text-secondary hover:text-white">
+                    <button onClick={loadData} className="p-1.5 hover:bg-[#323234] rounded-lg text-text-secondary hover:text-white transition-colors">
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                     </button>
                 </div>
@@ -209,12 +344,42 @@ export default function UnifiedCalendar() {
                     ref={calendarRef}
                     plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
                     initialView="upcomingWeek"
+                    initialDate={new Date().toISOString().split('T')[0]} // Start at today's midnight
+                    slotLabelFormat={{
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        meridiem: false
+                    }}
+                    eventTimeFormat={{
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        meridiem: false
+                    }}
+                    displayEventTime={true}
                     views={{
                         upcomingWeek: {
                             type: 'list',
-                            duration: { days: 14 },
-                            buttonText: 'Agenda'
+                            duration: { days: 7 },
+                            buttonText: 'Agenda',
+                            listDayFormat: { month: 'short', day: 'numeric', weekday: 'short' },
+                            listDaySideFormat: false // Keep it clean
                         }
+                    }}
+                    eventContent={(arg) => {
+                        return (
+                            <div className="flex items-center gap-1.5 w-full min-w-0 pr-1">
+                                {/* This adds the colored dot back into your custom UI */}
+                                <div
+                                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: arg.event.backgroundColor || '#3B82F6' }}
+                                />
+                                <span className="truncate flex-1 text-[11px] leading-tight text-white/90">
+                                    {arg.event.title}
+                                </span>
+                            </div>
+                        );
                     }}
                     headerToolbar={{
                         left: 'prev,next today',
@@ -222,7 +387,29 @@ export default function UnifiedCalendar() {
                         right: 'upcomingWeek,dayGridMonth'
                     }}
                     events={filteredEvents}
-                    height="100%"
+                    eventClassNames={(arg) => {
+                        const now = new Date();
+                        const end = arg.event.end ? new Date(arg.event.end) : null;
+                        const start = new Date(arg.event.start!);
+
+                        const classes = [];
+
+                        // 1. Past Events: Fade out
+                        if (end && end < now) {
+                            classes.push('opacity-40 grayscale-[0.5]');
+                        }
+                        // 2. NOW Event: Strong blue highlight
+                        else if (now >= start && (end ? now < end : true)) {
+                            classes.push('font-bold border-l-2 border-blue-500 bg-blue-500/15 text-white');
+                        }
+                        // 3. NEXT Event: Remove background, just standard text or slightly dimmed
+                        else if (nextEvent && arg.event.id === nextEvent.id) {
+                            classes.push('text-white/80');
+                        }
+
+                        return classes;
+                    }}
+                    height="auto"
                     dayMaxEvents={3}
                     nowIndicator={true}
                     editable={false}
@@ -241,7 +428,6 @@ export default function UnifiedCalendar() {
                         const w = date.toLocaleString('en-US', { weekday: 'short' });
                         return `${m} ${d}, ${w}`;
                     }}
-                    listDaySideFormat={false}
                 />
             </div>
 
@@ -318,6 +504,23 @@ export default function UnifiedCalendar() {
                 }
                 .calendar-container .fc-timegrid-slot { height: 2.5em; }
                 .calendar-container .fc-timegrid-slot-label { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+                @keyframes pulse-slow {
+                    0%, 100% { opacity: 0.05; }
+                    50% { opacity: 0.15; }
+                }
+                .animate-pulse-slow {
+                    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                }
+                .fc-list-event-title, .fc-list-event-time {
+                    font-size: 11px !important;
+                }
+                .fc-list-day-text, .fc-list-day-side-text {
+                    font-size: 11px !important;
+                    font-weight: 700 !important;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
             `}</style>
         </div>
     );

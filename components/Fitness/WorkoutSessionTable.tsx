@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     DndContext,
     closestCenter,
@@ -30,15 +30,17 @@ function SetRow({
 }: {
     setNumber: number;
     exerciseId: string;
-    defaultValues: { weight: number | null, reps: number, rpe: number | null, notes: string | null };
-    onLog: (data: any) => Promise<void>;
+    defaultValues: { weight: number | null, reps: number, rpe: number | null, duration: number | null, notes: string | null };
+    onLog: (data: any) => Promise<string | undefined>;
 }) {
     // Local state for this specific set
     const [weight, setWeight] = useState<number | ''>(defaultValues.weight || '');
     const [reps, setReps] = useState<number | ''>(defaultValues.reps || '');
     const [rpe, setRpe] = useState<number | ''>(defaultValues.rpe || '');
+    const [duration, setDuration] = useState<number | ''>(defaultValues.duration || '');
     const [notes, setNotes] = useState(defaultValues.notes || '');
     const [isCompleted, setIsCompleted] = useState(false);
+    const [logId, setLogId] = useState<string | undefined>(undefined);
     const [prevLog, setPrevLog] = useState<WorkoutLog | null>(null);
 
     // Fetch previous data for this set
@@ -50,6 +52,8 @@ function SetRow({
         fetchPrev();
     }, [exerciseId, setNumber]);
 
+    const isSaving = useRef(false);
+
     // Auto-save on debounce
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -58,37 +62,48 @@ function SetRow({
             }
         }, 1000);
         return () => clearTimeout(timer);
-    }, [weight, reps, rpe, notes]);
+    }, [weight, reps, rpe, duration, notes]);
 
     const handleSave = async () => {
-        if (!weight || !reps) return;
-        // console.log("Saving set", setNumber, { weight, reps, rpe, notes });
-        await onLog({
-            weight: Number(weight),
-            reps: Number(reps),
-            rpe: Number(rpe) || null,
-            notes: notes || null,
-            set_number: setNumber,
-        });
-        setIsCompleted(true); // Keep internal state for visual feedback if needed, or remove opacity logic?
-        // Let's keep isCompleted true to show visual feedback (opacity/green border)
+        if (!weight || !reps || isSaving.current) return;
+
+        isSaving.current = true;
+        try {
+            const payload: any = {
+                weight: Number(weight),
+                reps: Number(reps),
+                rpe: Number(rpe) || null,
+                duration_mins: Number(duration) || null,
+                notes: notes || null,
+                set_number: setNumber,
+            };
+
+            // Only include id if it exists
+            if (logId) payload.id = logId;
+
+            const returnedId = await onLog(payload);
+            if (returnedId) setLogId(returnedId);
+            setIsCompleted(true);
+        } finally {
+            isSaving.current = false;
+        }
     };
 
     return (
-        <div className={`grid grid-cols-12 gap-2 items-center py-2 border-b border-white/5 last:border-0 ${isCompleted ? 'opacity-50 hover:opacity-100 transition-opacity' : ''}`}>
+        <div className={`grid grid-cols-12 gap-1 md:gap-2 items-center py-2 border-b border-white/5 last:border-0 ${isCompleted ? 'opacity-50 hover:opacity-100 transition-opacity' : ''}`}>
             {/* Set # */}
             <div className="col-span-1 flex justify-center">
-                <span className="text-xs font-mono text-text-secondary bg-white/5 w-6 h-6 flex items-center justify-center rounded-full">
+                <span className="text-[10px] md:text-xs font-mono text-text-secondary bg-white/5 w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full">
                     {setNumber}
                 </span>
             </div>
 
             {/* Previous */}
-            <div className="col-span-2 text-xs text-text-secondary text-left flex flex-col justify-center">
+            <div className="col-span-1 text-[9px] md:text-xs text-text-secondary text-left flex flex-col justify-center min-w-0">
                 {prevLog ? (
-                    <div className="flex flex-col">
-                        <span className="text-white/70">{prevLog.weight}kg</span>
-                        <span className="opacity-50 text-[10px]">{prevLog.reps}x</span>
+                    <div className="flex flex-col truncate">
+                        <span className="text-white/70">{prevLog.weight}</span>
+                        <span className="opacity-50">{prevLog.reps}x</span>
                     </div>
                 ) : (
                     <span>-</span>
@@ -96,46 +111,57 @@ function SetRow({
             </div>
 
             {/* Weight */}
-            <div className="col-span-2 pr-4">
+            <div className="col-span-2">
                 <input
                     type="number"
                     placeholder={(defaultValues.weight || '-').toString()}
                     value={weight}
                     onChange={(e) => setWeight(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto transition-colors`}
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-0.5 md:p-1 font-mono text-xs md:text-sm h-8 md:h-auto transition-colors min-w-0`}
                 />
             </div>
 
             {/* Reps */}
-            <div className="col-span-2 pr-4">
+            <div className="col-span-2">
                 <input
                     type="number"
                     placeholder={(defaultValues.reps || '-').toString()}
                     value={reps}
                     onChange={(e) => setReps(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto transition-colors`}
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-0.5 md:p-1 font-mono text-xs md:text-sm h-8 md:h-auto transition-colors min-w-0`}
                 />
             </div>
 
             {/* RPE */}
-            <div className="col-span-1 pr-2">
+            <div className="col-span-1">
                 <input
                     type="number"
                     placeholder="-"
                     value={rpe}
                     onChange={(e) => setRpe(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${rpe !== '' ? getRPEColor(Number(rpe)) : (isCompleted ? 'text-accent-green font-bold' : 'text-white')} focus:border-accent-blue focus:outline-none p-1 font-mono text-sm h-10 md:h-auto transition-colors`}
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${rpe !== '' ? getRPEColor(Number(rpe)) : (isCompleted ? 'text-accent-green font-bold' : 'text-white')} focus:border-accent-blue focus:outline-none p-0.5 md:p-1 font-mono text-xs md:text-sm h-8 md:h-auto transition-colors min-w-0`}
                 />
             </div>
 
-            {/* Actions (Notes expanded) */}
+            {/* Mins */}
+            <div className="col-span-1">
+                <input
+                    type="number"
+                    placeholder="-"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    className={`w-full bg-transparent text-left border-b border-transparent hover:border-white/10 ${isCompleted ? 'text-accent-green font-bold' : 'text-white'} focus:border-accent-blue focus:outline-none p-0.5 md:p-1 font-mono text-xs md:text-sm h-8 md:h-auto transition-colors min-w-0`}
+                />
+            </div>
+
+            {/* Notes */}
             <div className="col-span-4">
                 <input
                     type="text"
                     placeholder="Notes..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full bg-transparent text-xs text-text-secondary focus:text-white border-b border-transparent focus:border-white/10 focus:outline-none truncate h-10 md:h-auto"
+                    className="w-full bg-transparent text-[10px] md:text-xs text-text-secondary focus:text-white border-b border-transparent focus:border-white/10 focus:outline-none truncate h-8 md:h-auto"
                 />
             </div>
         </div>
@@ -150,7 +176,7 @@ function ExerciseCard({
 }: {
     exercise: RoutineExercise;
     onDelete: (id: string) => void;
-    onLogSet: (data: any) => Promise<void>;
+    onLogSet: (data: any) => Promise<string | undefined>;
 }) {
     const {
         attributes,
@@ -199,12 +225,13 @@ function ExerciseCard({
             </div>
 
             {/* Column Headers for Sets */}
-            <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[10px] font-bold text-text-secondary uppercase tracking-wider bg-[#151516]">
+            <div className="grid grid-cols-12 gap-1 md:gap-2 px-4 py-2 text-[9px] md:text-[10px] font-bold text-text-secondary uppercase tracking-wider bg-[#151516]">
                 <div className="col-span-1 text-center">Set</div>
-                <div className="col-span-2 text-left">Prev</div>
+                <div className="col-span-1 text-left">Prv</div>
                 <div className="col-span-2 text-left">kg</div>
-                <div className="col-span-2 text-left">Reps</div>
+                <div className="col-span-2 text-left">Rps</div>
                 <div className="col-span-1 text-left">RPE</div>
+                <div className="col-span-1 text-left">Min</div>
                 <div className="col-span-4 text-left">Notes</div>
             </div>
 
@@ -219,14 +246,13 @@ function ExerciseCard({
                             weight: exercise.default_weight,
                             reps: exercise.default_reps,
                             rpe: null,
+                            duration: exercise.default_duration_mins,
                             notes: exercise.notes
                         }}
                         onLog={async (data) => {
-                            await onLogSet({
+                            return await onLogSet({
                                 ...data,
                                 exercise_id: exercise.id
-                                // We don't have log ID here yet, duplicate risk if spamming SAVE.
-                                // But `SetRow` handles 'isCompleted' state to avoid re-sending unless changed.
                             });
                         }}
                     />
@@ -276,7 +302,7 @@ interface WorkoutSessionTableProps {
     exercises: RoutineExercise[];
     onReorder: (newOrder: RoutineExercise[]) => void;
     onDelete: (id: string) => void;
-    onLogSet: (data: any) => Promise<boolean>; // Returns isPR
+    onLogSet: (data: any) => Promise<string | undefined>; // Returns log ID
 }
 
 export default function WorkoutSessionTable({ exercises, onReorder, onDelete, onLogSet }: WorkoutSessionTableProps) {
@@ -314,7 +340,7 @@ export default function WorkoutSessionTable({ exercises, onReorder, onDelete, on
                                 exercise={exercise}
                                 onDelete={onDelete}
                                 onLogSet={async (data) => {
-                                    await onLogSet(data);
+                                    return await onLogSet(data);
                                 }}
                             />
                         ))}

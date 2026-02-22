@@ -116,7 +116,7 @@ export async function getRoutineExercises(groupId: string): Promise<RoutineExerc
     }));
 }
 
-export async function logSet(log: Omit<WorkoutLog, 'id' | 'date' | 'is_pr'>): Promise<{ log: WorkoutLog | null, newPR: boolean }> {
+export async function logSet(log: Omit<WorkoutLog, 'date' | 'is_pr'> & { id?: string }): Promise<{ log: WorkoutLog | null, newPR: boolean }> {
     // 1. Check if it's a PR
     // Fetch current exercise to get PR
     const { data: exercise } = await supabase
@@ -128,15 +128,33 @@ export async function logSet(log: Omit<WorkoutLog, 'id' | 'date' | 'is_pr'>): Pr
     const currentPR = exercise?.personal_record || 0;
     const isNewPR = (log.weight || 0) > currentPR;
 
-    // 2. Insert Log
-    const { data: newLog, error } = await supabase
-        .from('workout_logs')
-        .insert([{
-            ...log,
-            is_pr: isNewPR
-        }])
-        .select()
-        .single();
+    let result;
+    if (log.id) {
+        // Update existing log - remove ID from payload to avoid DB errors
+        const { id, exercise_id, ...updates } = log;
+        result = await supabase
+            .from('workout_logs')
+            .update({
+                exercise_id, // keep this as it's part of the PK/data
+                ...updates,
+                is_pr: isNewPR
+            })
+            .eq('id', id)
+            .select()
+            .single();
+    } else {
+        // Insert new log
+        result = await supabase
+            .from('workout_logs')
+            .insert([{
+                ...log,
+                is_pr: isNewPR
+            }])
+            .select()
+            .single();
+    }
+
+    const { data: newLog, error } = result;
 
     if (error) {
         console.error('Error logging set:', error);

@@ -9,7 +9,7 @@ interface Props {
     project: Project;
     tasks: Task[];
     onTasksChange: (tasks: Task[]) => void;
-    onAddTask: (status: Task['status'], title: string, dueDate: string | null) => void;
+    onAddTask: (status: Task['status'], title: string, dueDate: string | null, startDate: string | null, endDate: string | null) => void;
     onRefresh: () => void;
 }
 
@@ -62,7 +62,7 @@ export default function ChecklistView({ project, tasks, onTasksChange, onAddTask
 
     async function handleAddTask() {
         if (!newTitle.trim()) return;
-        await onAddTask('todo', newTitle.trim(), null);
+        await onAddTask('todo', newTitle.trim(), null, null, null);
         setNewTitle('');
         setIsAdding(false);
     }

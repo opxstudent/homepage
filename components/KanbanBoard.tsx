@@ -30,7 +30,7 @@ interface Props {
     project: Project;
     tasks: Task[];
     onTasksChange: (tasks: Task[]) => void;
-    onAddTask: (status: Task['status'], title: string, dueDate: string | null) => void;
+    onAddTask: (status: Task['status'], title: string, dueDate: string | null, startDate: string | null, endDate: string | null) => void;
     onRefresh: () => void;
 }
 
@@ -138,7 +138,7 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, 
                                 id={col.id}
                                 label={col.label}
                                 tasks={tasks.filter(t => t.status === col.id)}
-                                onAddTask={(title: string, dueDate: string | null) => onAddTask(col.id, title, dueDate)}
+                                onAddTask={(title: string, due: string | null, start: string | null, end: string | null) => onAddTask(col.id, title, due, start, end)}
                                 onUpdateTask={updateTask}
                                 onDeleteTask={deleteTask}
                             />

@@ -5,13 +5,14 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, X } from 'lucide-react';
 import { Task } from './ProjectsDashboard';
+import { toUTCISO } from '@/lib/dateUtils';
 import KanbanCard from './KanbanCard';
 
 interface Props {
     id: Task['status'];
     label: string;
     tasks: Task[];
-    onAddTask: (title: string, dueDate: string | null) => void;
+    onAddTask: (title: string, dueDate: string | null, startDate: string | null, endDate: string | null) => void;
     onUpdateTask: (id: string, patch: Partial<Task>) => void;
     onDeleteTask: (id: string) => void;
 }
@@ -26,14 +27,27 @@ export default function KanbanColumn({ id, label, tasks, onAddTask, onUpdateTask
     const [adding, setAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newDue, setNewDue] = useState('');
+    const [newStart, setNewStart] = useState('');
+    const [newEnd, setNewEnd] = useState('');
 
     const { setNodeRef, isOver } = useDroppable({ id });
 
     function submitAdd() {
         if (!newTitle.trim()) return;
-        onAddTask(newTitle.trim(), newDue || null);
+        const dueDate = newDue || null;
+        let startDate = null;
+        let endDate = null;
+
+        if (dueDate) {
+            startDate = toUTCISO(dueDate, newStart);
+            endDate = toUTCISO(dueDate, newEnd);
+        }
+
+        onAddTask(newTitle.trim(), dueDate, startDate, endDate);
         setNewTitle('');
         setNewDue('');
+        setNewStart('');
+        setNewEnd('');
         setAdding(false);
     }
 
@@ -84,15 +98,38 @@ export default function KanbanColumn({ id, label, tasks, onAddTask, onUpdateTask
                             placeholder="Task title…"
                             className="w-full bg-[#2a2a2c] rounded px-2 py-1.5 text-sm text-white placeholder:text-text-secondary focus:outline-none"
                         />
+                        <label className="text-[10px] text-text-secondary px-1">Due Date (All-Day)</label>
                         <input
                             type="date"
                             value={newDue}
-                            onChange={e => setNewDue(e.target.value)}
+                            onChange={e => { setNewDue(e.target.value); if (e.target.value) { setNewStart(''); setNewEnd(''); } }}
                             className="w-full bg-[#2a2a2c] rounded px-2 py-1.5 text-xs text-text-secondary focus:outline-none"
                         />
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-[10px] text-text-secondary px-1">Start Time</label>
+                                <input
+                                    type="text"
+                                    placeholder="HH:mm"
+                                    value={newStart}
+                                    onChange={e => setNewStart(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] rounded px-1.5 py-1 text-[10px] text-text-secondary focus:outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-text-secondary px-1">End Time</label>
+                                <input
+                                    type="text"
+                                    placeholder="HH:mm"
+                                    value={newEnd}
+                                    onChange={e => setNewEnd(e.target.value)}
+                                    className="w-full bg-[#2a2a2c] rounded px-1.5 py-1 text-[10px] text-text-secondary focus:outline-none"
+                                />
+                            </div>
+                        </div>
                         <div className="flex gap-2">
                             <button onClick={submitAdd} className="flex-1 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium transition-all">Add</button>
-                            <button onClick={() => { setAdding(false); setNewTitle(''); setNewDue(''); }} className="p-1 hover:bg-[#3a3a3c] rounded transition-all">
+                            <button onClick={() => { setAdding(false); setNewTitle(''); setNewDue(''); setNewStart(''); setNewEnd(''); }} className="p-1 hover:bg-[#3a3a3c] rounded transition-all">
                                 <X size={14} className="text-text-secondary" />
                             </button>
                         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase-client';
-import { Minus, Plus, Circle } from 'lucide-react';
+import { Minus, Plus, Circle, CheckCircle2 } from 'lucide-react';
 import { getLocalISOString } from '@/lib/dateUtils';
 import { sortHabitsByColor } from '@/lib/habitUtils';
 
@@ -92,52 +92,94 @@ export default function HabitsWidget() {
         fetchAll();
     }
 
-    const pendingHabits = habits.filter(h => !todayCompleted[h.id]);
+    const allDone = habits.length > 0 && habits.every(h => todayCompleted[h.id]);
 
     return (
-        <div className="bg-surface rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Today's Habits</h3>
-            <div className="space-y-2">
-                {pendingHabits.length === 0 && (
-                    <p className="text-text-secondary text-sm text-center py-4">All done for today! ✨</p>
-                )}
-                {pendingHabits.map((habit) => {
+        <div className="bg-[#1E1E1E] rounded-xl p-4 border border-white/5 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4 px-1">
+                <h3 className="text-[10px] font-bold text-text-secondary/60 uppercase tracking-[0.2em]">Action Deck: Habits</h3>
+                {allDone && <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">All Done ✨</span>}
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1">
+                {habits.filter(h => !todayCompleted[h.id]).map((habit) => {
                     const currentValue = todayValues[habit.id] || 0;
+                    const isDone = todayCompleted[habit.id];
+                    const isStarted = currentValue > 0;
+
+                    let statusIcon = <Circle size={14} className="text-text-secondary/30" />;
+                    let bgColor = 'hover:bg-white/[0.02]';
+                    let textColor = 'text-text-secondary';
+                    let accentColor = 'bg-white/10';
+
+                    if (isDone) {
+                        statusIcon = <CheckCircle2 size={14} className="text-emerald-500" />;
+                        bgColor = 'bg-emerald-500/5 hover:bg-emerald-500/10';
+                        textColor = 'text-white';
+                        accentColor = 'bg-emerald-500/20';
+                    } else if (isStarted) {
+                        statusIcon = <Circle size={14} className="text-blue-400" fill="currentColor" fillOpacity={0.2} />;
+                        bgColor = 'bg-blue-500/5 hover:bg-blue-500/10';
+                        textColor = 'text-white';
+                        accentColor = 'bg-blue-500/20';
+                    }
 
                     return (
                         <div
                             key={habit.id}
-                            className="w-full flex items-center gap-3 p-3 bg-active hover:bg-[#323234] rounded-xl transition-all group"
+                            onClick={() => habit.habit_type === 'boolean' ? toggleBoolean(habit.id) : updateQuantity(habit, habit.target_value || currentValue + 1)}
+                            className={`group flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer border border-white/5 hover:border-white/10 ${bgColor}`}
                         >
-                            <button
-                                onClick={() => habit.habit_type === 'boolean' ? toggleBoolean(habit.id) : updateQuantity(habit, habit.target_value || 0)}
-                                className="flex-shrink-0"
-                            >
-                                <Circle size={20} className="text-text-secondary group-hover:text-text-primary flex-shrink-0" />
-                            </button>
+                            <div
+                                className="w-1.5 self-stretch rounded-full"
+                                style={{ backgroundColor: habit.color || '#3B82F6' }}
+                            />
+                            <div className="shrink-0 transition-transform group-active:scale-90">
+                                {statusIcon}
+                            </div>
 
-                            <div className="flex items-center gap-3 flex-1">
-                                <span className="text-sm text-left text-text-primary">
+                            <div className="flex-1 min-w-0">
+                                <span className={`text-[12px] font-medium truncate block ${textColor}`}>
                                     {habit.title}
                                 </span>
+                            </div>
 
-                                {habit.habit_type === 'quantity' && (
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <button onClick={(e) => { e.stopPropagation(); updateQuantity(habit, Math.max(0, currentValue - 1)); }}
-                                            className="w-5 h-5 flex items-center justify-center bg-surface hover:bg-[#323234] border border-[#323234] rounded text-white transition-all">
+                            {habit.habit_type === 'quantity' && (
+                                <div className="flex items-center gap-2">
+                                    <div className="flex bg-black/20 rounded-md overflow-hidden border border-white/5">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateQuantity(habit, Math.max(0, currentValue - 1));
+                                            }}
+                                            className="px-2 py-1.5 hover:bg-white/5 text-text-secondary hover:text-white transition-colors border-r border-white/10"
+                                        >
                                             <Minus size={10} />
                                         </button>
-                                        <div className="flex items-center justify-center gap-0.5 min-w-[3ch]">
-                                            <span className="text-white text-xs font-medium">{currentValue}</span>
-                                            <span className="text-text-secondary text-xs">/{habit.target_value}</span>
+                                        <div className="px-2.5 py-1.5 min-w-[32px] text-center flex items-center justify-center">
+                                            <span className={`text-[10px] font-mono font-bold ${isDone ? 'text-emerald-400' : isStarted ? 'text-blue-400' : 'text-text-secondary/60'}`}>
+                                                {currentValue}
+                                            </span>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); updateQuantity(habit, currentValue + 1); }}
-                                            className="w-5 h-5 flex items-center justify-center bg-surface hover:bg-[#323234] border border-[#323234] rounded text-white transition-all">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateQuantity(habit, currentValue + 1);
+                                            }}
+                                            className="px-2 py-1.5 hover:bg-white/5 text-text-secondary hover:text-white transition-colors border-l border-white/10"
+                                        >
                                             <Plus size={10} />
                                         </button>
                                     </div>
-                                )}
-                            </div>
+                                    <span className="text-[9px] font-mono text-text-secondary/30 w-8">/ {habit.target_value}</span>
+                                </div>
+                            )}
+
+                            {habit.habit_type === 'boolean' && !isDone && (
+                                <div className="px-2 py-1 rounded bg-white/5 text-[9px] font-bold text-text-secondary/40 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+                                    LOG
+                                </div>
+                            )}
                         </div>
                     );
                 })}

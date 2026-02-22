@@ -53,60 +53,63 @@ function SortableLink({ link, onEdit, onDelete }: { link: QuickLink; onEdit: (l:
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="group relative h-full">
+        <div ref={setNodeRef} style={style} className="group relative">
             <a
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-active hover:bg-[#323234] rounded-md p-2.5 flex flex-col items-center justify-center gap-1.5 transition-all h-full"
+                className="bg-active hover:bg-[#323234] rounded-lg p-2 flex flex-col items-center justify-center gap-1 transition-all h-[72px] border border-white/5 hover:border-white/10"
                 title={link.title}
             >
-                {/* Drag Handle - Only visible on hover */}
+                {/* Drag Handle - Small and discrete */}
                 <div
                     {...attributes}
                     {...listeners}
-                    className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 hover:bg-white/10 rounded touch-none"
+                    className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-0.5 hover:bg-white/10 rounded touch-none"
                     onClick={(e) => e.preventDefault()}
                 >
-                    <GripVertical size={12} className="text-text-secondary" />
+                    <GripVertical size={10} className="text-text-secondary opacity-30" />
                 </div>
 
-                <div className="w-6 h-6 flex items-center justify-center">
+                <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                     {link.image_url ? (
                         <img
                             src={link.image_url}
                             alt={link.title}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain mix-blend-lighten opacity-80 group-hover:opacity-100 transition-opacity"
                         />
                     ) : (
-                        <ExternalLink size={16} className="text-text-secondary" />
+                        <ExternalLink size={14} className="text-text-secondary" />
                     )}
                 </div>
-                <span className="text-[10px] text-text-secondary group-hover:text-text-primary transition-colors text-center line-clamp-1 w-full px-1">
+                <span className="text-[10px] font-medium text-text-secondary group-hover:text-text-primary transition-colors text-center line-clamp-1 w-full px-1">
                     {link.title}
                 </span>
             </a>
-            <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                    onClick={(e) => {
-                        e.preventDefault();
-                        onEdit(link);
-                    }}
-                    className="bg-accent-blue hover:bg-accent-blue/90 rounded-md p-1 group/btn shadow-lg"
-                    title="Edit Link"
-                >
-                    <Edit2 size={8} className="text-white" />
-                </button>
-                <button
-                    onClick={(e) => {
-                        e.preventDefault();
-                        onDelete(link.id);
-                    }}
-                    className="bg-red-500 hover:bg-red-600 rounded-md p-1 group/btn shadow-lg"
-                    title="Delete Link"
-                >
-                    <Trash2 size={8} className="text-white" />
-                </button>
+
+            <div className="absolute -top-1 -left-1 opacity-0 group-hover:opacity-100 transition-all pointer-events-none scale-90 group-hover:scale-100">
+                <div className="flex gap-0.5 pointer-events-auto bg-[#323234] p-0.5 rounded-md shadow-2xl border border-white/10">
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onEdit(link);
+                        }}
+                        className="text-text-secondary hover:text-blue-400 p-0.5"
+                        title="Edit"
+                    >
+                        <Edit2 size={10} />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onDelete(link.id);
+                        }}
+                        className="text-text-secondary hover:text-red-400 p-0.5"
+                        title="Delete"
+                    >
+                        <Trash2 size={10} />
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -292,24 +295,24 @@ export default function QuickLinks() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="bg-surface rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-base font-semibold text-white">Quick Links</h3>
+            <div className="bg-[#1E1E1E] rounded-xl p-3 border border-white/5">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <h3 className="text-[9px] font-bold text-text-secondary/60 uppercase tracking-[0.2em]">Quick Access</h3>
                     <button
                         onClick={() => {
                             if (isAdding) resetForm();
                             else setIsAdding(true);
                         }}
-                        className="p-1.5 bg-accent-blue hover:bg-accent-blue/90 rounded-lg transition-all"
+                        className="p-1 text-text-secondary hover:text-white transition-all hover:bg-white/5 rounded"
                     >
-                        <Plus size={14} className={`text-white transition-transform ${isAdding ? 'rotate-45' : ''}`} />
+                        <Plus size={12} className={`transition-transform ${isAdding ? 'rotate-45' : ''}`} />
                     </button>
                 </div>
 
                 {/* Link Form (Add or Edit) */}
                 {isAdding && (
-                    <div className="mb-4 p-3 bg-active rounded-lg space-y-2 border border-white/5">
-                        <p className="text-[10px] uppercase font-bold text-text-secondary px-1">
+                    <div className="mb-3 p-3 bg-active rounded-lg space-y-2 border border-white/5 shadow-2xl">
+                        <p className="text-[9px] uppercase font-bold text-text-secondary/50 px-1">
                             {editingLink ? 'Edit Link' : 'Add New Link'}
                         </p>
                         <input
@@ -344,7 +347,7 @@ export default function QuickLinks() {
                             </select>
                             <button
                                 onClick={handleSave}
-                                className="bg-accent-blue hover:bg-accent-blue/90 text-white text-xs px-4 py-1.5 rounded font-medium transition-colors"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider transition-colors"
                             >
                                 {editingLink ? 'Update' : 'Add'}
                             </button>
@@ -352,15 +355,16 @@ export default function QuickLinks() {
                     </div>
                 )}
 
-                {/* Categories in vertical columns */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Categories stacked tightly */}
+                <div className="space-y-4">
                     {categoryOrder.map((category) => {
                         // Filter links for this category
                         const categoryLinks = links.filter(l => l.category === category);
+                        if (categoryLinks.length === 0 && !isAdding) return null;
 
                         return (
                             <div key={category}>
-                                <h4 className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2 px-1">
+                                <h4 className="text-[8px] font-bold text-text-secondary/30 uppercase tracking-[0.2em] mb-1.5 px-1">
                                     {categoryLabels[category]}
                                 </h4>
                                 <SortableContext
@@ -368,7 +372,7 @@ export default function QuickLinks() {
                                     items={categoryLinks.map(l => l.id)}
                                     strategy={rectSortingStrategy}
                                 >
-                                    <div className="grid grid-cols-2 gap-1.5">
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-1.5">
                                         {categoryLinks.map((link) => (
                                             <SortableLink
                                                 key={link.id}
@@ -387,8 +391,8 @@ export default function QuickLinks() {
             {/* Drag Overlay for smooth dragging preview */}
             <DragOverlay>
                 {activeId ? (
-                    <div className="bg-active rounded-md p-2.5 flex flex-col items-center justify-center gap-1.5 h-full opacity-80 cursor-grabbing border border-accent-blue shadow-xl w-[100px] h-[80px]">
-                        <div className="w-6 h-6 flex items-center justify-center">
+                    <div className="bg-active rounded-lg p-2 flex flex-col items-center justify-center gap-1 h-[72px] opacity-80 cursor-grabbing border border-accent-blue shadow-2xl w-[90px]">
+                        <div className="w-8 h-8 flex items-center justify-center">
                             <ExternalLink size={16} className="text-text-secondary" />
                         </div>
                     </div>

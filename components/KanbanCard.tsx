@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Trash2, Calendar, X, Edit2 } from 'lucide-react';
 import { Task } from './ProjectsDashboard';
+import { toUTCISO, formatLocalTime } from '@/lib/dateUtils';
 
 interface Props {
     task: Task;
@@ -22,6 +23,8 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
     const [isEditingModalOpen, setIsEditingModalOpen] = useState(false);
     const [editTitle, setEditTitle] = useState(task.title);
     const [editDue, setEditDue] = useState(task.due_date ? task.due_date.slice(0, 10) : '');
+    const [editStart, setEditStart] = useState(formatLocalTime(task.start_date));
+    const [editEnd, setEditEnd] = useState(formatLocalTime(task.end_date));
 
     const {
         attributes,
@@ -39,18 +42,35 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
 
     const isDone = task.status === 'done';
 
-    function getDueLabel(dateStr: string | null): { label: string; color: string } | null {
+    function getDueLabel(task: Task): { label: string; color: string } | null {
+        if (!task.due_date && !task.start_date && !task.end_date) return null;
+
+        if (task.start_date && task.end_date) {
+            const start = new Date(task.start_date);
+            const end = new Date(task.end_date);
+            const label = `${start.toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} - ${end.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+            return { label, color: 'text-text-secondary' };
+        }
+
+        const dateStr = task.due_date || task.start_date || task.end_date;
         if (!dateStr) return null;
+
         const due = new Date(dateStr.slice(0, 10) + 'T00:00:00');
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const today = new Date(todayStr + 'T00:00:00');
         const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (diffDays < 0) return { label: `${Math.abs(diffDays)}d overdue`, color: 'text-red-400' };
-        if (diffDays === 0) return { label: 'Due today', color: 'text-amber-400' };
-        if (diffDays === 1) return { label: 'Due tomorrow', color: 'text-amber-400' };
-        return { label: `${diffDays}d left`, color: 'text-text-secondary' };
+        let timeLabel = '';
+        if (task.start_date || task.end_date) {
+            const date = new Date(task.start_date || task.end_date!);
+            timeLabel = `, ${date.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+        }
+
+        if (diffDays < 0) return { label: `${Math.abs(diffDays)}d overdue${timeLabel}`, color: 'text-red-400' };
+        if (diffDays === 0) return { label: `Today${timeLabel}`, color: 'text-amber-400' };
+        if (diffDays === 1) return { label: `Tomorrow${timeLabel}`, color: 'text-amber-400' };
+        return { label: `${diffDays}d left${timeLabel}`, color: 'text-text-secondary' };
     }
 
     function saveTitle() {
@@ -64,8 +84,17 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
         if (!editTitle.trim()) return;
         const patch: Partial<Task> = {};
         if (editTitle.trim() !== task.title) patch.title = editTitle.trim();
-        const due = editDue ? editDue : null;
-        if (due !== (task.due_date ? task.due_date.slice(0, 10) : null)) patch.due_date = due;
+
+        const due = editDue || null;
+        patch.due_date = due;
+
+        if (due) {
+            patch.start_date = toUTCISO(due, editStart);
+            patch.end_date = toUTCISO(due, editEnd);
+        } else {
+            patch.start_date = null;
+            patch.end_date = null;
+        }
 
         if (Object.keys(patch).length > 0) {
             onUpdate(patch);
@@ -73,7 +102,7 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
         setIsEditingModalOpen(false);
     }
 
-    const dueInfo = getDueLabel(task.due_date);
+    const dueInfo = getDueLabel(task);
 
     return (
         <>
@@ -125,6 +154,8 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
                                 e.stopPropagation();
                                 setEditTitle(task.title);
                                 setEditDue(task.due_date ? task.due_date.slice(0, 10) : '');
+                                setEditStart(formatLocalTime(task.start_date));
+                                setEditEnd(formatLocalTime(task.end_date));
                                 setIsEditingModalOpen(true);
                             }}
                             className="p-1 hover:text-white text-text-secondary transition-all"
@@ -202,13 +233,35 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-text-secondary block mb-1.5">Due Date</label>
+                                <label className="text-xs text-text-secondary block mb-1.5">Due Date (All-Day)</label>
                                 <input
                                     type="date"
                                     value={editDue}
-                                    onChange={e => setEditDue(e.target.value)}
+                                    onChange={e => { setEditDue(e.target.value); }}
                                     className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
                                 />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs text-text-secondary block mb-1.5">Start Time</label>
+                                    <input
+                                        type="text"
+                                        placeholder="HH:mm"
+                                        value={editStart}
+                                        onChange={e => setEditStart(e.target.value)}
+                                        className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-text-secondary block mb-1.5">End Time</label>
+                                    <input
+                                        type="text"
+                                        placeholder="HH:mm"
+                                        value={editEnd}
+                                        onChange={e => setEditEnd(e.target.value)}
+                                        className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-3 justify-end">

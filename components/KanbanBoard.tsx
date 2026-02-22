@@ -4,12 +4,14 @@ import { useState } from 'react';
 import {
     DndContext,
     DragEndEvent,
+    DragOverEvent,
     DragOverlay,
     DragStartEvent,
     PointerSensor,
     useSensor,
     useSensors,
     pointerWithin,
+    closestCorners,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { supabase } from '@/lib/supabase-client';
@@ -46,6 +48,37 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, 
         setActiveTask(task ?? null);
     }
 
+    function handleDragOver(event: DragOverEvent) {
+        const { active, over } = event;
+        if (!over) return;
+
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        if (activeId === overId) return;
+
+        const activeTask = tasks.find(t => t.id === activeId);
+        const overTask = tasks.find(t => t.id === overId);
+
+        if (!activeTask) return;
+
+        // Determine destination status
+        let overStatus: Task['status'] | null = null;
+        if (COLUMN_IDS.has(overId as any)) {
+            overStatus = overId as any;
+        } else if (overTask) {
+            overStatus = overTask.status;
+        }
+
+        if (!overStatus || activeTask.status === overStatus) return;
+
+        // Move across columns in state immediately for visual feedback
+        const updated = tasks.map(t =>
+            t.id === activeId ? { ...t, status: overStatus! } : t
+        );
+        onTasksChange(updated);
+    }
+
     async function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event;
         setActiveTask(null);
@@ -57,39 +90,38 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, 
         const draggedTask = tasks.find(t => t.id === activeId);
         if (!draggedTask) return;
 
-        // Determine the target column
-        const targetStatus: Task['status'] = COLUMN_IDS.has(overId as Task['status'])
-            ? (overId as Task['status'])
-            : (tasks.find(t => t.id === overId)?.status ?? draggedTask.status);
+        const overTask = tasks.find(t => t.id === overId);
+        const targetStatus: Task['status'] = COLUMN_IDS.has(overId as any)
+            ? (overId as any)
+            : (overTask?.status ?? draggedTask.status);
 
-        // Build the updated task list
-        let updated = tasks.map(t =>
-            t.id === activeId ? { ...t, status: targetStatus } : t
-        );
-
-        // Reorder within the target column
-        const colTasks = updated.filter(t => t.status === targetStatus);
+        // Get all tasks in target column from current state
+        const colTasks = tasks.filter(t => t.status === targetStatus);
         const oldIdx = colTasks.findIndex(t => t.id === activeId);
-        const newIdx = COLUMN_IDS.has(overId as Task['status'])
-            ? colTasks.length - 1  // dropped on empty column → end
+        const newIdx = COLUMN_IDS.has(overId as any)
+            ? colTasks.length - 1
             : colTasks.findIndex(t => t.id === overId);
 
-        let reordered = colTasks;
-        if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
-            reordered = arrayMove(colTasks, oldIdx, newIdx);
+        if (oldIdx !== -1 && newIdx !== -1) {
+            let reordered = colTasks;
+            if (oldIdx !== newIdx) {
+                reordered = arrayMove(colTasks, oldIdx, newIdx);
+            }
+            const withOrder = reordered.map((t, i) => ({ ...t, order: i }));
+
+            const final = [
+                ...tasks.filter(t => t.status !== targetStatus),
+                ...withOrder
+            ];
+            onTasksChange(final);
+
+            // Persist all in target column
+            await Promise.all(
+                withOrder.map(t =>
+                    supabase.from('tasks').update({ status: targetStatus, order: t.order }).eq('id', t.id)
+                )
+            );
         }
-        reordered = reordered.map((t, i) => ({ ...t, order: i }));
-
-        const others = updated.filter(t => t.status !== targetStatus);
-        updated = [...others, ...reordered];
-        onTasksChange(updated);
-
-        // Persist
-        await Promise.all(
-            reordered.map(t =>
-                supabase.from('tasks').update({ status: t.status, order: t.order }).eq('id', t.id)
-            )
-        );
     }
 
     async function updateTask(id: string, patch: Partial<Task>) {
@@ -127,8 +159,9 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, 
             <div className="flex-1 overflow-x-auto overflow-y-hidden">
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={pointerWithin}
+                    collisionDetection={closestCorners}
                     onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
                     <div className="flex gap-5 h-full p-4 md:p-8 min-w-max">

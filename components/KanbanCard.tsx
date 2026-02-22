@@ -33,7 +33,7 @@ export default function KanbanCard({ task, isDragging, onUpdate, onDelete }: Pro
         transform,
         transition,
         isDragging: isSortableDragging,
-    } = useSortable({ id: task.id });
+    } = useSortable({ id: task.id, disabled: isDragging });
 
     const style = {
         transform: CSS.Transform.toString(transform),

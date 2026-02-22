@@ -28,6 +28,7 @@ export interface Task {
     due_date: string | null;
     start_date: string | null;
     end_date: string | null;
+    category: string | null;
     order: number;
 }
 
@@ -139,7 +140,7 @@ export default function ProjectsDashboard() {
         ]);
     }
 
-    async function addTask(status: Task['status'], title: string, dueDate: string | null, startDate: string | null = null, endDate: string | null = null) {
+    async function addTask(status: Task['status'], title: string, dueDate: string | null, startDate: string | null = null, endDate: string | null = null, category: string | null = null) {
         if (!selectedId) return;
         const projectTasks = tasks.filter(t => t.project_id === selectedId);
         const colTasks = projectTasks.filter(t => t.status === status);
@@ -151,6 +152,7 @@ export default function ProjectsDashboard() {
             due_date: dueDate || null,
             start_date: startDate || null,
             end_date: endDate || null,
+            category: category || null,
             order: colTasks.length,
         }).select().single();
 

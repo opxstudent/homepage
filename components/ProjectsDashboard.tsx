@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase-client';
-import { Plus, FolderOpen, Target, Archive, Trash2, X, CheckCircle2, MoreHorizontal, ArchiveRestore, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, FolderOpen, Target, Archive, Trash2, X, CheckCircle2, MoreHorizontal, ArchiveRestore, ChevronDown, ChevronRight, ListTodo } from 'lucide-react';
 import KanbanBoard from './KanbanBoard';
 import ProjectList from './ProjectList';
 import ChecklistView from './ChecklistView';
+
+export const GOAL_CATEGORIES = ['Health & Fitness', 'Career', 'Finance', 'Hobbies'] as const;
+export type GoalCategory = typeof GOAL_CATEGORIES[number];
 
 export interface Project {
     id: string;
     title: string;
     status: 'active' | 'archived';
-    type: 'project' | 'goal';
-    category: 'Career' | 'Finance' | 'Health & Fitness' | 'Hobbies' | null;
+    type: 'project' | 'goal' | 'checklist';
+    category: GoalCategory | null;
     goal_year: number | null;
     updated_at: string;
 }
@@ -34,13 +37,12 @@ export default function ProjectsDashboard() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newTitle, setNewTitle] = useState('');
-    const [newType, setNewType] = useState<'project' | 'goal'>('project');
-    const [newCategory, setNewCategory] = useState<'Career' | 'Finance' | 'Health & Fitness' | 'Hobbies' | null>(null);
+    const [newType, setNewType] = useState<'project' | 'goal' | 'checklist'>('project');
+    const [newCategory, setNewCategory] = useState<GoalCategory | null>(null);
     const [newGoalYear, setNewGoalYear] = useState<number>(CURRENT_YEAR);
     const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
     const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
     const [showArchived, setShowArchived] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'checklist'>('kanban');
 
     useEffect(() => { fetchAll(); }, []);
 
@@ -81,7 +83,7 @@ export default function ProjectsDashboard() {
             }
         } else {
             // Create new
-            const { data } = await supabase.from('projects').insert(payload).select().single();
+            const { data, error } = await supabase.from('projects').insert(payload).select().single();
             if (data) {
                 setProjects(prev => [data, ...prev]);
                 setSelectedId(data.id);
@@ -140,7 +142,7 @@ export default function ProjectsDashboard() {
         const projectTasks = tasks.filter(t => t.project_id === selectedId);
         const colTasks = projectTasks.filter(t => t.status === status);
 
-        const { data } = await supabase.from('tasks').insert({
+        const { data, error } = await supabase.from('tasks').insert({
             project_id: selectedId,
             title,
             status,
@@ -154,6 +156,7 @@ export default function ProjectsDashboard() {
     }
 
     const activeProjects = projects.filter(p => p.type === 'project' && p.status === 'active');
+    const activeChecklists = projects.filter(p => p.type === 'checklist' && p.status === 'active');
     // Group goals by year, sorted descending
     const goalsByYear = projects
         .filter(p => p.type === 'goal')
@@ -163,18 +166,30 @@ export default function ProjectsDashboard() {
             acc[yr].push(p);
             return acc;
         }, {});
+
+    // Sort goals within each year by category order
+    Object.values(goalsByYear).forEach(yearGoals => {
+        yearGoals.sort((a, b) => {
+            const indexA = a.category ? GOAL_CATEGORIES.indexOf(a.category) : 999;
+            const indexB = b.category ? GOAL_CATEGORIES.indexOf(b.category) : 999;
+            if (indexA !== indexB) return indexA - indexB;
+            return a.title.localeCompare(b.title);
+        });
+    });
+
     const goalYears = Object.keys(goalsByYear).map(Number)
         .filter(yr => yr === CURRENT_YEAR || yr === CURRENT_YEAR - 1)
         .sort((a, b) => b - a);
 
     function SidebarItem({ p, archived = false }: { p: Project; archived?: boolean }) {
-        const Icon = p.type === 'goal' ? Target : FolderOpen;
+        const Icon = p.type === 'goal' ? Target : p.type === 'checklist' ? ListTodo : FolderOpen;
         const iconColor = p.type === 'project' ? 'text-blue-400' :
-            p.category === 'Career' ? 'text-blue-400' :
-                p.category === 'Finance' ? 'text-emerald-400' :
-                    p.category === 'Health & Fitness' ? 'text-amber-400' :
-                        p.category === 'Hobbies' ? 'text-purple-400' :
-                            'text-text-secondary';
+            p.type === 'checklist' ? 'text-pink-400' :
+                p.category === 'Career' ? 'text-blue-400' :
+                    p.category === 'Finance' ? 'text-emerald-400' :
+                        p.category === 'Health & Fitness' ? 'text-amber-400' :
+                            p.category === 'Hobbies' ? 'text-purple-400' :
+                                'text-text-secondary';
         const isGoalComplete = p.type === 'goal' &&
             tasks.filter(t => t.project_id === p.id).length > 0 &&
             tasks.filter(t => t.project_id === p.id).every(t => t.status === 'done');
@@ -182,7 +197,9 @@ export default function ProjectsDashboard() {
         return (
             <div className="relative">
                 <div
-                    onClick={() => setSelectedId(p.id)}
+                    onClick={() => {
+                        setSelectedId(p.id);
+                    }}
                     className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${selectedId === p.id ? 'bg-white/5 text-white' : 'text-text-secondary hover:bg-white/5 hover:text-white'} ${archived ? 'opacity-60' : ''}`}
                 >
                     <Icon size={15} className={`flex-shrink-0 ${iconColor}`} />
@@ -271,7 +288,21 @@ export default function ProjectsDashboard() {
                         )}
                     </div>
 
-                    {/* Section B: Goals grouped by year */}
+                    {/* Section B: Checklists */}
+                    <div>
+                        <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider px-2 mb-1">
+                            Checklists
+                        </p>
+                        {activeChecklists.length === 0 ? (
+                            <p className="text-text-secondary text-xs px-2 py-1 opacity-50">No checklists yet</p>
+                        ) : (
+                            <div className="space-y-0.5">
+                                {activeChecklists.map(p => <SidebarItem key={p.id} p={p} />)}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Section C: Goals grouped by year */}
                     {goalYears.length === 0 ? (
                         <div>
                             <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider px-2 mb-1">Goals</p>
@@ -316,23 +347,21 @@ export default function ProjectsDashboard() {
                 {selectedProject ? (
                     <>
                         <div className="hidden md:block h-full">
-                            {viewMode === 'kanban' ? (
-                                <KanbanBoard
-                                    project={selectedProject}
-                                    tasks={selectedTasks}
-                                    onTasksChange={handleTasksChange}
-                                    onAddTask={addTask}
-                                    onRefresh={fetchAll}
-                                    onToggleView={setViewMode}
-                                />
-                            ) : (
+                            {selectedProject.type === 'checklist' ? (
                                 <ChecklistView
                                     project={selectedProject}
                                     tasks={selectedTasks}
                                     onTasksChange={handleTasksChange}
                                     onAddTask={addTask}
                                     onRefresh={fetchAll}
-                                    onToggleView={setViewMode}
+                                />
+                            ) : (
+                                <KanbanBoard
+                                    project={selectedProject}
+                                    tasks={selectedTasks}
+                                    onTasksChange={handleTasksChange}
+                                    onAddTask={addTask}
+                                    onRefresh={fetchAll}
                                 />
                             )}
                         </div>
@@ -386,6 +415,12 @@ export default function ProjectsDashboard() {
                             >
                                 <Target size={14} /> Goal
                             </button>
+                            <button
+                                onClick={() => setNewType('checklist')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${newType === 'checklist' ? 'bg-[#3a3a3c] text-white' : 'text-text-secondary hover:text-white'}`}
+                            >
+                                <ListTodo size={14} /> Checklist
+                            </button>
                         </div>
 
                         {/* Title input */}
@@ -397,7 +432,7 @@ export default function ProjectsDashboard() {
                                 if (e.key === 'Enter') saveItem();
                                 if (e.key === 'Escape') { setShowCreateModal(false); setEditingProjectId(null); setNewTitle(''); setNewType('project'); }
                             }}
-                            placeholder={newType === 'goal' ? 'Goal title…' : 'Project name…'}
+                            placeholder={newType === 'goal' ? 'Goal title…' : newType === 'checklist' ? 'Checklist name…' : 'Project name…'}
                             className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-text-secondary focus:outline-none transition-colors mb-4"
                         />
 
@@ -406,10 +441,10 @@ export default function ProjectsDashboard() {
                                 <div>
                                     <label className="text-xs text-text-secondary block mb-1.5">Category</label>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {['Career', 'Finance', 'Health & Fitness', 'Hobbies'].map((cat) => (
+                                        {GOAL_CATEGORIES.map((cat) => (
                                             <button
                                                 key={cat}
-                                                onClick={() => setNewCategory(cat as any)}
+                                                onClick={() => setNewCategory(cat)}
                                                 className={`py-2 rounded-xl text-xs font-medium transition-all border ${newCategory === cat
                                                     ? 'bg-white/10 border-white/20 text-white'
                                                     : 'bg-transparent border-white/5 text-text-secondary hover:border-white/10'

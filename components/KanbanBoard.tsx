@@ -32,10 +32,9 @@ interface Props {
     onTasksChange: (tasks: Task[]) => void;
     onAddTask: (status: Task['status'], title: string, dueDate: string | null) => void;
     onRefresh: () => void;
-    onToggleView: (view: 'kanban' | 'checklist') => void;
 }
 
-export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, onRefresh, onToggleView }: Props) {
+export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, onRefresh }: Props) {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
 
     const sensors = useSensors(
@@ -121,22 +120,6 @@ export default function KanbanBoard({ project, tasks, onTasksChange, onAddTask, 
                         {' · '}
                         {tasks.filter(t => t.status === 'done').length} done
                     </p>
-                </div>
-
-                <div className="flex bg-[#2a2a2c] rounded-lg p-0.5">
-                    <button
-                        className="p-1.5 rounded-md bg-[#3a3a3c] text-white shadow-sm"
-                        title="Kanban View"
-                    >
-                        <LayoutGrid size={16} />
-                    </button>
-                    <button
-                        onClick={() => onToggleView('checklist')}
-                        className="p-1.5 rounded-md text-text-secondary hover:text-white transition-all"
-                        title="Checklist View"
-                    >
-                        <ListTodo size={16} />
-                    </button>
                 </div>
             </div>
 

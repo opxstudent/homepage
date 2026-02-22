@@ -116,7 +116,7 @@ export async function getRoutineExercises(groupId: string): Promise<RoutineExerc
     }));
 }
 
-export async function logSet(log: Omit<WorkoutLog, 'date' | 'is_pr'> & { id?: string }): Promise<{ log: WorkoutLog | null, newPR: boolean }> {
+export async function logSet(log: Omit<WorkoutLog, 'is_pr' | 'id'> & { id?: string }): Promise<{ log: WorkoutLog | null, newPR: boolean }> {
     // 1. Check if it's a PR
     // Fetch current exercise to get PR
     const { data: exercise } = await supabase

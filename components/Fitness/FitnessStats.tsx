@@ -127,7 +127,7 @@ export default function FitnessStatsDashboard({ stats }: FitnessStatsProps) {
                 <div className="bg-[#1a1a1c] p-6 rounded-xl flex-1">
                     <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
                         <Trophy size={14} className="text-accent-date" />
-                        Recent Achievements
+                        PRs
                     </h3>
                     <div className="space-y-4">
                         {recentPRs.length === 0 ? (
@@ -136,7 +136,12 @@ export default function FitnessStatsDashboard({ stats }: FitnessStatsProps) {
                             recentPRs.map((pr, i) => (
                                 <div key={i} className="flex items-center justify-between group">
                                     <div className="flex flex-col">
-                                        <span className="text-white font-medium text-sm">{pr.exercise}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-white font-medium text-sm">{pr.exercise}</span>
+                                            <span className="text-[9px] bg-accent-date/20 text-accent-date px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold">
+                                                <Flame size={8} /> PR
+                                            </span>
+                                        </div>
                                         <span className="text-text-secondary text-[10px]">{pr.date}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -148,7 +153,7 @@ export default function FitnessStatsDashboard({ stats }: FitnessStatsProps) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -186,7 +191,7 @@ function ConsistencyHeatmap({ data }: { data: FitnessStats['consistency'] }) {
             const totalDays = weeks * 7;
             dateCalc.setDate(today.getDate() - totalDays + 1 + dayOffset);
 
-            const dStr = dateCalc.toISOString().split('T')[0];
+            const dStr = dateCalc.toLocaleDateString('en-CA');
             const info = dataMap.get(dStr);
 
             weekCells.push({

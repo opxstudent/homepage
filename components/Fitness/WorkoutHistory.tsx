@@ -37,7 +37,7 @@ export default function WorkoutHistory() {
     const [addForm, setAddForm] = useState({
         exercise_id: '',
         exercise_name: '',
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
         set_number: 1,
         weight: '',
         reps: '',
@@ -69,7 +69,10 @@ export default function WorkoutHistory() {
         const grouped: Record<string, any> = {};
 
         logs.forEach(log => {
-            const dateObj = new Date(log.date);
+            const dateStr = log.date.split('T')[0];
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d); // Naive date object for display
+
             const dateDisplay = dateObj.toLocaleDateString(undefined, {
                 weekday: 'short',
                 month: 'short',
@@ -79,7 +82,7 @@ export default function WorkoutHistory() {
             if (!grouped[dateDisplay]) {
                 grouped[dateDisplay] = {
                     date: dateDisplay,
-                    rawDate: log.date, // Store one raw date from the session
+                    rawDate: dateStr, // Consistent naive date
                     exercises: {},
                     totalSets: 0,
                     categories: new Set()
@@ -122,12 +125,9 @@ export default function WorkoutHistory() {
     const handleEditClick = (log: WorkoutLog) => {
         setEditingLogId(log.id);
         setEditForm({
-            weight: log.weight,
-            reps: log.reps,
-            rpe: log.rpe,
-            duration_mins: log.duration_mins,
-            notes: log.notes,
-            set_number: log.set_number
+            ...log,
+            // @ts-ignore
+            date: log.date.split('T')[0]
         });
     };
 
@@ -139,7 +139,15 @@ export default function WorkoutHistory() {
     const handleSaveEdit = async () => {
         if (!editingLogId) return;
 
-        const success = await updateWorkoutLog(editingLogId, editForm);
+        const { date, ...rest } = editForm as any;
+        const combinedDate = date ? `${date}T00:00:00` : undefined;
+
+        const updates = {
+            ...rest,
+            ...(combinedDate ? { date: combinedDate } : {})
+        };
+
+        const success = await updateWorkoutLog(editingLogId, updates);
         if (success) {
             await loadHistory();
             setEditingLogId(null);
@@ -206,7 +214,7 @@ export default function WorkoutHistory() {
 
         const data = {
             exercise_id: addForm.exercise_id,
-            date: new Date(addForm.date).toISOString(), // Use selected date
+            date: `${addForm.date}T00:00:00`, // Naive start-of-day ISO
             set_number: addForm.set_number || 1,
             weight: addForm.weight ? parseFloat(addForm.weight) : null,
             reps: addForm.reps ? parseInt(addForm.reps) : null,
@@ -501,144 +509,142 @@ export default function WorkoutHistory() {
 
                         <div className="space-y-4">
                             {/* Date & Exercise Selection */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs text-text-secondary uppercase font-bold mb-1.5 block">Date</label>
-                                    <input
-                                        type="date"
-                                        className="w-full bg-[#151516] border border-white/5 focus:border-accent-blue rounded-xl px-3 py-2 text-white focus:outline-none transition-colors"
-                                        value={addForm.date}
-                                        onChange={e => setAddForm({ ...addForm, date: e.target.value })}
-                                        max={new Date().toISOString().split('T')[0]} // Max today
-                                    />
-                                </div>
-                                <div className="relative">
-                                    <label className="text-xs text-text-secondary uppercase font-bold mb-1.5 block">Exercise</label>
-                                    {!addForm.exercise_id ? (
-                                        <>
-                                            <input
-                                                type="text"
-                                                className="w-full bg-[#151516] border border-white/5 focus:border-accent-blue rounded-xl px-3 py-2 text-white focus:outline-none transition-colors placeholder:text-white/20"
-                                                placeholder="Search library..."
-                                                value={exerciseSearch}
-                                                onChange={e => setExerciseSearch(e.target.value)}
-                                            />
-                                            {exerciseSearch && (
-                                                <div className="absolute top-full left-0 right-0 mt-1 bg-[#252527] border border-white/10 rounded-xl max-h-48 overflow-y-auto z-50 shadow-xl">
-                                                    {masterLibrary
-                                                        .filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()))
-                                                        .map(ex => (
-                                                            <button
-                                                                key={ex.id}
-                                                                onClick={() => handleSelectExercise(ex)}
-                                                                className="w-full text-left px-3 py-2 hover:bg-accent-blue/10 text-white text-sm"
-                                                            >
-                                                                {ex.name}
-                                                            </button>
-                                                        ))}
-                                                    {masterLibrary.filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase())).length === 0 && (
-                                                        <div className="px-3 py-2 text-text-secondary text-sm italic">No exercises found</div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <div className="w-full bg-accent-blue/10 border border-accent-blue/20 rounded-xl px-3 py-2 text-accent-blue flex justify-between items-center">
-                                            <span className="font-medium truncate pr-2">{addForm.exercise_name}</span>
-                                            <button onClick={() => setAddForm({ ...addForm, exercise_id: '', exercise_name: '' })} className="hover:text-white flex-shrink-0">
-                                                <X size={16} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                            <div>
+                                <label className="text-xs text-text-secondary uppercase font-bold mb-1.5 block">Date</label>
+                                <input
+                                    type="date"
+                                    className="w-full bg-[#151516] border border-white/5 focus:border-accent-blue rounded-xl px-3 py-2 text-white focus:outline-none transition-colors"
+                                    value={addForm.date}
+                                    onChange={e => setAddForm({ ...addForm, date: e.target.value })}
+                                    max={new Date().toLocaleDateString('en-CA')}
+                                />
                             </div>
-
-                            {/* Metrics Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#151516] p-4 rounded-xl border border-white/5">
-                                <div>
-                                    <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">Set #</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
-                                        value={addForm.set_number}
-                                        onChange={e => setAddForm({ ...addForm, set_number: parseInt(e.target.value) || 1 })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">Weight</label>
-                                    <input
-                                        type="number"
-                                        placeholder="kg"
-                                        className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
-                                        value={addForm.weight}
-                                        onChange={e => setAddForm({ ...addForm, weight: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">Reps</label>
-                                    <input
-                                        type="number"
-                                        placeholder="count"
-                                        min="1"
-                                        className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
-                                        value={addForm.reps}
-                                        onChange={e => setAddForm({ ...addForm, reps: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">RPE</label>
-                                    <input
-                                        type="number"
-                                        max="10"
-                                        placeholder="-"
-                                        className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
-                                        value={addForm.rpe}
-                                        onChange={e => setAddForm({ ...addForm, rpe: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Duration & Notes */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div>
-                                    <label className="text-[10px] text-text-secondary uppercase block pl-1 mb-1">Time (mins)</label>
-                                    <input
-                                        type="number"
-                                        placeholder="-"
-                                        className="w-full bg-[#151516] border border-white/5 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-blue"
-                                        value={addForm.duration_mins}
-                                        onChange={e => setAddForm({ ...addForm, duration_mins: e.target.value })}
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-[10px] text-text-secondary uppercase block pl-1 mb-1">Notes</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Optional notes..."
-                                        className="w-full bg-[#151516] border border-white/5 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-blue"
-                                        value={addForm.notes}
-                                        onChange={e => setAddForm({ ...addForm, notes: e.target.value })}
-                                    />
-                                </div>
+                            <div className="relative">
+                                <label className="text-xs text-text-secondary uppercase font-bold mb-1.5 block">Exercise</label>
+                                {!addForm.exercise_id ? (
+                                    <>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#151516] border border-white/5 focus:border-accent-blue rounded-xl px-3 py-2 text-white focus:outline-none transition-colors placeholder:text-white/20"
+                                            placeholder="Search library..."
+                                            value={exerciseSearch}
+                                            onChange={e => setExerciseSearch(e.target.value)}
+                                        />
+                                        {exerciseSearch && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-[#252527] border border-white/10 rounded-xl max-h-48 overflow-y-auto z-50 shadow-xl">
+                                                {masterLibrary
+                                                    .filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()))
+                                                    .map(ex => (
+                                                        <button
+                                                            key={ex.id}
+                                                            onClick={() => handleSelectExercise(ex)}
+                                                            className="w-full text-left px-3 py-2 hover:bg-accent-blue/10 text-white text-sm"
+                                                        >
+                                                            {ex.name}
+                                                        </button>
+                                                    ))}
+                                                {masterLibrary.filter(ex => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase())).length === 0 && (
+                                                    <div className="px-3 py-2 text-text-secondary text-sm italic">No exercises found</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="w-full bg-accent-blue/10 border border-accent-blue/20 rounded-xl px-3 py-2 text-accent-blue flex justify-between items-center">
+                                        <span className="font-medium truncate pr-2">{addForm.exercise_name}</span>
+                                        <button onClick={() => setAddForm({ ...addForm, exercise_id: '', exercise_name: '' })} className="hover:text-white flex-shrink-0">
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="flex gap-3 justify-end pt-2 border-t border-white/5">
-                            <button
-                                onClick={() => setShowAddModal(false)}
-                                className="px-4 py-2 bg-white/5 text-text-secondary hover:text-white rounded-lg transition-colors font-medium text-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveAdd}
-                                disabled={!addForm.exercise_id || !addForm.date || isSubmitting}
-                                className="px-6 py-2 bg-accent-blue text-black font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
-                            >
-                                {isSubmitting ? <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : 'Save Log'}
-                            </button>
+                        {/* Metrics Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#151516] p-4 rounded-xl border border-white/5">
+                            <div>
+                                <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">Set #</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
+                                    value={addForm.set_number}
+                                    onChange={e => setAddForm({ ...addForm, set_number: parseInt(e.target.value) || 1 })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">Weight</label>
+                                <input
+                                    type="number"
+                                    placeholder="kg"
+                                    className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
+                                    value={addForm.weight}
+                                    onChange={e => setAddForm({ ...addForm, weight: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">Reps</label>
+                                <input
+                                    type="number"
+                                    placeholder="count"
+                                    min="1"
+                                    className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
+                                    value={addForm.reps}
+                                    onChange={e => setAddForm({ ...addForm, reps: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-text-secondary uppercase mb-1 flex justify-center">RPE</label>
+                                <input
+                                    type="number"
+                                    max="10"
+                                    placeholder="-"
+                                    className="w-full bg-black/40 text-center text-white rounded-lg py-1.5 focus:outline-accent-blue border border-transparent focus:border-accent-blue/50"
+                                    value={addForm.rpe}
+                                    onChange={e => setAddForm({ ...addForm, rpe: e.target.value })}
+                                />
+                            </div>
                         </div>
+
+                        {/* Duration & Notes */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label className="text-[10px] text-text-secondary uppercase block pl-1 mb-1">Time (mins)</label>
+                                <input
+                                    type="number"
+                                    placeholder="-"
+                                    className="w-full bg-[#151516] border border-white/5 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-blue"
+                                    value={addForm.duration_mins}
+                                    onChange={e => setAddForm({ ...addForm, duration_mins: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] text-text-secondary uppercase block pl-1 mb-1">Notes</label>
+                                <input
+                                    type="text"
+                                    placeholder="Optional notes..."
+                                    className="w-full bg-[#151516] border border-white/5 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-accent-blue"
+                                    value={addForm.notes}
+                                    onChange={e => setAddForm({ ...addForm, notes: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-2 border-t border-white/5">
+                        <button
+                            onClick={() => setShowAddModal(false)}
+                            className="px-4 py-2 bg-white/5 text-text-secondary hover:text-white rounded-lg transition-colors font-medium text-sm"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSaveAdd}
+                            disabled={!addForm.exercise_id || !addForm.date || isSubmitting}
+                            className="px-6 py-2 bg-accent-blue text-black font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+                        >
+                            {isSubmitting ? <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : 'Save Log'}
+                        </button>
                     </div>
                 </div>
             )}

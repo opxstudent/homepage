@@ -306,11 +306,22 @@ export async function getFitnessStats(): Promise<FitnessStats> {
     }
 
     // 2. Process Weekly Frequency (Last 7 days)
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    // Use local YYYY-MM-DD instead of UTC to avoid day-shift bugs
+    const todayStr = now.toLocaleDateString('en-CA');
+
+    // Calculate boundaries in local time
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(now.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toLocaleDateString('en-CA');
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toLocaleDateString('en-CA');
+
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setDate(now.getDate() - 90);
+    const threeMonthsAgoStr = threeMonthsAgo.toLocaleDateString('en-CA');
 
     // Helpers
     const uniqueDates = new Set<string>();
@@ -327,15 +338,20 @@ export async function getFitnessStats(): Promise<FitnessStats> {
     const consistencyMap: Record<string, { count: number; categories: Set<string> }> = {}; // date -> info
 
     logs.forEach(log => {
-        const date = new Date(log.date);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = log.date.split('T')[0];
         // @ts-ignore
         const exName = log.exercise?.name;
         // @ts-ignore
-        const category = log.exercise?.category || 'Other';
+        let category = (log.exercise?.category || 'Other').trim();
 
-        // Weekly RPE
-        if (date >= sevenDaysAgo && log.rpe) {
+        // Normalize categories for chart keys
+        if (category.toLowerCase() === 'upper body') category = 'Upper Body';
+        else if (category.toLowerCase() === 'lower body') category = 'Lower Body';
+        else if (category.toLowerCase() === 'cardio') category = 'Cardio';
+        else if (category.toLowerCase() === 'functional') category = 'Functional';
+
+        // Weekly RPE - compare date strings (local-to-local)
+        if (dateStr >= sevenDaysAgoStr && log.rpe) {
             weeklyRpeSum += log.rpe;
             weeklyRpeCount++;
         }
@@ -346,7 +362,7 @@ export async function getFitnessStats(): Promise<FitnessStats> {
                 prs.push({
                     exercise: exName,
                     weight: log.weight,
-                    date: date.toLocaleDateString()
+                    date: dateStr.split('-').reverse().join('/') // DD/MM/YYYY or similar naive format
                 });
                 processedPrExercises.add(exName);
             }
@@ -354,29 +370,30 @@ export async function getFitnessStats(): Promise<FitnessStats> {
 
         uniqueDates.add(dateStr);
 
-        // Training Split (Count Sessions/Sets - treating log as a "set", maybe better to count unique days*category?)
-        // User said "Aggregate total sessions (or sets) by category". Sets is easier here.
-        if (splitMap[category] !== undefined) {
-            splitMap[category]++;
-        } else {
-            // handle unknown categories if any
-            if (!splitMap['Functional']) splitMap['Functional'] = 0; // fallback bucket? or just ignore
+        // Training Split (Last 30 Days as per UI label)
+        if (dateStr >= thirtyDaysAgoStr) {
+            if (splitMap[category] !== undefined) {
+                splitMap[category]++;
+            } else {
+                if (!splitMap['Functional']) splitMap['Functional'] = 0;
+            }
         }
 
         // Trend (Last 12 weeks)
         // Group by week start (Monday)
-        const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon...
-        const diffToMon = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-        const monday = new Date(date);
-        monday.setDate(diffToMon);
-        monday.setHours(0, 0, 0, 0); // normalize
-        const weekStr = monday.toISOString().split('T')[0];
+        // Group by week start (Monday) - Naive approach to avoid UTC shift
+        const [y, m, d_num] = dateStr.split('-').map(Number);
+        const d_obj = new Date(y, m - 1, d_num);
+        const dayOfWeek = d_obj.getDay(); // 0=Sun, 1=Mon...
+        const diffToMon = d_obj.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        const monday = new Date(y, m - 1, diffToMon);
+        const weekStr = monday.toLocaleDateString('en-CA');
 
         // Filter to last 12 weeks approx (3 months)
         const threeMonthsAgo = new Date();
         threeMonthsAgo.setDate(now.getDate() - 90);
 
-        if (date >= threeMonthsAgo) {
+        if (dateStr >= threeMonthsAgoStr) {
             if (!trendMap[weekStr]) {
                 trendMap[weekStr] = { 'Upper Body': 0, 'Lower Body': 0, 'Cardio': 0, 'Functional': 0 };
             }
@@ -396,7 +413,7 @@ export async function getFitnessStats(): Promise<FitnessStats> {
         }
 
         // Consistency
-        if (date >= threeMonthsAgo) {
+        if (dateStr >= threeMonthsAgoStr) {
             if (!consistencyMap[dateStr]) {
                 consistencyMap[dateStr] = { count: 0, categories: new Set() };
             }
@@ -428,7 +445,7 @@ export async function getFitnessStats(): Promise<FitnessStats> {
     for (let i = 0; i < trendWeeks; i++) {
         const wDate = new Date(currentTrendDate);
         wDate.setDate(currentTrendDate.getDate() - (i * 7));
-        const wStr = wDate.toISOString().split('T')[0];
+        const wStr = wDate.toLocaleDateString('en-CA');
 
         const counts = trendMap[wStr] || { 'Upper Body': 0, 'Lower Body': 0, 'Cardio': 0, 'Functional': 0 };
         trend.unshift({ // Prepend to have oldest first
@@ -455,7 +472,7 @@ export async function getFitnessStats(): Promise<FitnessStats> {
     if (sortedDates.length > 0) {
         const yesterday = new Date();
         yesterday.setDate(now.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
 
         if (sortedDates[0] === todayStr || sortedDates[0] === yesterdayStr) {
             currentStreak = 1;
@@ -472,11 +489,12 @@ export async function getFitnessStats(): Promise<FitnessStats> {
 
     // Weekly Freq (Existing Logic)
     const weeklyFreq: { day: string; count: number }[] = [];
+    const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
-        const dStr = d.toISOString().split('T')[0];
-        const dayName = days[d.getDay()];
+        const dStr = d.toLocaleDateString('en-CA');
+        const dayName = daysShort[d.getDay()];
         const count = uniqueDates.has(dStr) ? 1 : 0;
         weeklyFreq.push({ day: dayName, count });
     }
@@ -636,16 +654,11 @@ export async function deleteWorkoutLog(logId: string): Promise<boolean> {
 }
 
 export async function deleteWorkoutSession(date: string): Promise<boolean> {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(23, 59, 59, 999);
-
     const { error } = await supabase
         .from('workout_logs')
         .delete()
-        .gte('date', start.toISOString())
-        .lte('date', end.toISOString());
+        .gte('date', `${date}T00:00:00`)
+        .lte('date', `${date}T23:59:59`);
 
     if (error) {
         console.error('Error deleting workout session:', error);

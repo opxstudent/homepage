@@ -87,13 +87,16 @@ export default function UnifiedCalendar() {
         try {
             // 1. Fetch ICS Calendars
             const { data: calData } = await supabase.from('calendars').select('*');
-            const icsSources: CalendarSource[] = (calData || []).map(c => ({
-                name: c.name,
-                id: c.calendar_id,
-                color: c.color || '#3B82F6',
-                enabled: true,
-                type: 'ics'
-            }));
+            const icsSources: CalendarSource[] = (calData || []).map(c => {
+                const isWorkout = c.name?.toLowerCase().includes('workout');
+                return {
+                    name: c.name,
+                    id: c.calendar_id,
+                    color: isWorkout ? '#F97316' : (c.color || '#3B82F6'),
+                    enabled: true,
+                    type: 'ics'
+                };
+            });
 
             // 2. Add System Sources (Tasks)
             // Check if we already have it in state to preserve enabled status, otherwise default true
@@ -101,7 +104,7 @@ export default function UnifiedCalendar() {
             const tasksSource: CalendarSource = {
                 name: 'Tasks',
                 id: 'tasks-system',
-                color: '#F97316', // Orange
+                color: '#10B981', // Green
                 enabled: existingTasksSource ? existingTasksSource.enabled : true,
                 type: 'system'
             };
@@ -130,15 +133,14 @@ export default function UnifiedCalendar() {
                     const start = t.start_date || t.due_date;
                     const end = t.end_date || (t.start_date ? new Date(new Date(t.start_date).getTime() + 3600000).toISOString() : null);
                     const isAllDay = !t.start_date;
-
                     allEvents.push({
                         id: t.id,
                         title: `[Task] ${t.title}`,
                         start: start!,
                         end: end || undefined,
                         allDay: isAllDay,
-                        backgroundColor: '#F97316',
-                        borderColor: '#F97316',
+                        backgroundColor: '#10B981',
+                        borderColor: '#10B981',
                         extendedProps: { source: 'Tasks', type: 'task' }
                     });
                 });

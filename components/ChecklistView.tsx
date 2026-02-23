@@ -3,7 +3,162 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { Project, Task } from './ProjectsDashboard';
-import { Plus, RotateCcw, CheckCircle2, Circle, Edit2, Trash2, X, Check, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, RotateCcw, CheckCircle2, Circle, Edit2, Trash2, X, Check, ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface SortableItemProps {
+    task: Task;
+    editingId: string | null;
+    editingTitle: string;
+    editingCategory: string;
+    onToggle: (task: Task) => void;
+    onUpdate: (id: string) => void;
+    onDelete: (id: string) => void;
+    onEditStart: (task: Task) => void;
+    setEditingTitle: (v: string) => void;
+    setEditingCategory: (v: string) => void;
+    setEditingId: (id: string | null) => void;
+}
+
+function SortableItem({
+    task,
+    editingId,
+    editingTitle,
+    editingCategory,
+    onToggle,
+    onUpdate,
+    onDelete,
+    onEditStart,
+    setEditingTitle,
+    setEditingCategory,
+    setEditingId
+}: SortableItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: task.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 'auto',
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`group flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/5 ${editingId === task.id ? 'bg-white/5 border-white/10' : ''}`}
+        >
+            <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing text-text-secondary/30 hover:text-white/40 transition-colors"
+            >
+                <GripVertical size={16} />
+            </div>
+
+            <button
+                onClick={() => onToggle(task)}
+                className={`flex-shrink-0 transition-all ${task.status === 'done' ? 'text-emerald-500' : 'text-text-secondary group-hover:text-white'}`}
+            >
+                {task.status === 'done' ? <CheckCircle2 size={20} fill="currentColor" fillOpacity={0.15} /> : <Circle size={20} />}
+            </button>
+
+            {editingId === task.id ? (
+                <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                        <input
+                            autoFocus
+                            value={editingTitle}
+                            onChange={e => setEditingTitle(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') onUpdate(task.id);
+                                if (e.key === 'Escape') setEditingId(null);
+                            }}
+                            className="flex-1 bg-transparent border-none text-white focus:ring-0 p-0 text-[15px]"
+                            placeholder="Title"
+                        />
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => onUpdate(task.id)}
+                                className="p-1 text-emerald-500 hover:text-emerald-400"
+                            >
+                                <Check size={16} />
+                            </button>
+                            <button
+                                onClick={() => setEditingId(null)}
+                                className="p-1 text-text-secondary hover:text-white"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                    </div>
+                    <input
+                        value={editingCategory}
+                        onChange={e => setEditingCategory(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') onUpdate(task.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                        }}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white placeholder:text-text-secondary focus:outline-none focus:border-emerald-500/50 transition-all"
+                        placeholder="Category"
+                    />
+                </div>
+            ) : (
+                <>
+                    <span
+                        onClick={() => onToggle(task)}
+                        className={`text-[15px] flex-1 cursor-pointer transition-all ${task.status === 'done' ? 'text-text-secondary line-through' : 'text-white'}`}
+                    >
+                        {task.title}
+                    </span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEditStart(task);
+                            }}
+                            className="p-1.5 text-text-secondary hover:text-white rounded-lg hover:bg-white/10"
+                            title="Edit"
+                        >
+                            <Edit2 size={14} />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(task.id);
+                            }}
+                            className="p-1.5 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10"
+                            title="Delete"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
 
 interface Props {
     project: Project;
@@ -22,6 +177,14 @@ export default function ChecklistView({ project, tasks, onTasksChange, onAddTask
     const [editingCategory, setEditingCategory] = useState('');
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Avoid accidental drags when clicking
+            },
+        })
+    );
 
     const sortedTasks = [...tasks].sort((a, b) => a.order - b.order);
 
@@ -83,6 +246,41 @@ export default function ChecklistView({ project, tasks, onTasksChange, onAddTask
         setNewTitle('');
         setNewCategory('');
         setIsAdding(false);
+    }
+
+    async function handleDragEnd(event: DragEndEvent) {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = tasks.findIndex(t => t.id === active.id);
+        const newIndex = tasks.findIndex(t => t.id === over.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+            let newTasks = [...tasks];
+            const activeTask = tasks[oldIndex];
+            const overTask = tasks[newIndex];
+
+            // If dragging between categories, update the active task's category
+            if (activeTask.category !== overTask.category) {
+                newTasks[oldIndex] = { ...activeTask, category: overTask.category };
+            }
+
+            const reorderedTasks = arrayMove(newTasks, oldIndex, newIndex);
+
+            // Update local state immediately with new order values
+            const updates = reorderedTasks.map((t, idx) => ({ ...t, order: idx }));
+            onTasksChange(updates);
+
+            // Persist to DB using upsert with the full task object
+            const { error } = await supabase
+                .from('tasks')
+                .upsert(updates);
+
+            if (error) {
+                console.error('Error updating task order:', error);
+                onRefresh(); // Revert to server state on error
+            }
+        }
     }
 
     // Grouping logic
@@ -154,177 +352,120 @@ export default function ChecklistView({ project, tasks, onTasksChange, onAddTask
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-8">
-                <div className="max-w-3xl mx-auto space-y-6">
-                    {categories.map(cat => (
-                        <div key={cat} className="space-y-1">
-                            <button
-                                onClick={() => toggleCategory(cat)}
-                                className="flex items-center gap-2 w-full px-2 py-1 text-xs font-semibold text-text-secondary uppercase tracking-widest hover:text-white transition-colors"
-                            >
-                                <span className={`transition-transform duration-200 ${expandedCategories[cat] === false ? '' : 'rotate-90'}`}>
-                                    <ChevronRight size={14} />
-                                </span>
-                                {cat}
-                                <span className="ml-auto text-[10px] opacity-50">
-                                    {groupedTasks[cat].filter(t => t.status === 'done').length}/{groupedTasks[cat].length}
-                                </span>
-                            </button>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="max-w-3xl mx-auto space-y-6">
+                        {categories.map(cat => (
+                            <div key={cat} className="space-y-1">
+                                <button
+                                    onClick={() => toggleCategory(cat)}
+                                    className="flex items-center gap-2 w-full px-2 py-1 text-xs font-semibold text-text-secondary uppercase tracking-widest hover:text-white transition-colors"
+                                >
+                                    <span className={`transition-transform duration-200 ${expandedCategories[cat] === false ? '' : 'rotate-90'}`}>
+                                        <ChevronRight size={14} />
+                                    </span>
+                                    {cat}
+                                    <span className="ml-auto text-[10px] opacity-50">
+                                        {groupedTasks[cat].filter(t => t.status === 'done').length}/{groupedTasks[cat].length}
+                                    </span>
+                                </button>
 
-                            {expandedCategories[cat] !== false && (
-                                <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                                    {groupedTasks[cat].map(task => (
-                                        <div
-                                            key={task.id}
-                                            className={`group flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/5 ${editingId === task.id ? 'bg-white/5 border-white/10' : ''}`}
-                                        >
-                                            <button
-                                                onClick={() => toggleStatus(task)}
-                                                className={`flex-shrink-0 transition-all ${task.status === 'done' ? 'text-emerald-500' : 'text-text-secondary group-hover:text-white'}`}
-                                            >
-                                                {task.status === 'done' ? <CheckCircle2 size={20} fill="currentColor" fillOpacity={0.15} /> : <Circle size={20} />}
-                                            </button>
-
-                                            {editingId === task.id ? (
-                                                <div className="flex-1 space-y-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            autoFocus
-                                                            value={editingTitle}
-                                                            onChange={e => setEditingTitle(e.target.value)}
-                                                            onKeyDown={e => {
-                                                                if (e.key === 'Enter') updateTask(task.id);
-                                                                if (e.key === 'Escape') setEditingId(null);
-                                                            }}
-                                                            className="flex-1 bg-transparent border-none text-white focus:ring-0 p-0 text-[15px]"
-                                                            placeholder="Title"
-                                                        />
-                                                        <div className="flex items-center gap-1">
-                                                            <button
-                                                                onClick={() => updateTask(task.id)}
-                                                                className="p-1 text-emerald-500 hover:text-emerald-400"
-                                                            >
-                                                                <Check size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setEditingId(null)}
-                                                                className="p-1 text-text-secondary hover:text-white"
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <input
-                                                        value={editingCategory}
-                                                        onChange={e => setEditingCategory(e.target.value)}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') updateTask(task.id);
-                                                            if (e.key === 'Escape') setEditingId(null);
-                                                        }}
-                                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white placeholder:text-text-secondary focus:outline-none focus:border-emerald-500/50 transition-all"
-                                                        placeholder="Category"
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <span
-                                                        onClick={() => toggleStatus(task)}
-                                                        className={`text-[15px] flex-1 cursor-pointer transition-all ${task.status === 'done' ? 'text-text-secondary line-through' : 'text-white'}`}
-                                                    >
-                                                        {task.title}
-                                                    </span>
-                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setEditingId(task.id);
-                                                                setEditingTitle(task.title);
-                                                                setEditingCategory(task.category || '');
-                                                            }}
-                                                            className="p-1.5 text-text-secondary hover:text-white rounded-lg hover:bg-white/10"
-                                                            title="Edit"
-                                                        >
-                                                            <Edit2 size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                deleteChecklistItem(task.id);
-                                                            }}
-                                                            className="p-1.5 text-text-secondary hover:text-red-400 rounded-lg hover:bg-red-500/10"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
+                                {expandedCategories[cat] !== false && (
+                                    <SortableContext
+                                        items={groupedTasks[cat].map(t => t.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                            {groupedTasks[cat].map(task => (
+                                                <SortableItem
+                                                    key={task.id}
+                                                    task={task}
+                                                    editingId={editingId}
+                                                    editingTitle={editingTitle}
+                                                    editingCategory={editingCategory}
+                                                    onToggle={toggleStatus}
+                                                    onUpdate={updateTask}
+                                                    onDelete={deleteChecklistItem}
+                                                    onEditStart={(t) => {
+                                                        setEditingId(t.id);
+                                                        setEditingTitle(t.title);
+                                                        setEditingCategory(t.category || '');
+                                                    }}
+                                                    setEditingTitle={setEditingTitle}
+                                                    setEditingCategory={setEditingCategory}
+                                                    setEditingId={setEditingId}
+                                                />
+                                            ))}
                                         </div>
-                                    ))}
+                                    </SortableContext>
+                                )}
+                            </div>
+                        ))}
+
+                        <div className="pt-4">
+                            {isAdding ? (
+                                <div className="bg-[#2a2a2c] border border-[#3a3a3c] rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
+                                    <div className="space-y-3">
+                                        <input
+                                            autoFocus
+                                            value={newTitle}
+                                            onChange={e => setNewTitle(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') handleAddTask();
+                                                if (e.key === 'Escape') setIsAdding(false);
+                                            }}
+                                            placeholder="Item name (e.g. Toothbrush)"
+                                            className="w-full bg-transparent border-none text-white placeholder:text-text-secondary focus:ring-0 p-0 text-[15px]"
+                                        />
+                                        <input
+                                            value={newCategory}
+                                            onChange={e => setNewCategory(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') handleAddTask();
+                                                if (e.key === 'Escape') setIsAdding(false);
+                                            }}
+                                            placeholder="Category (e.g. Toiletries)"
+                                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-text-secondary focus:outline-none focus:border-emerald-500/50 transition-all"
+                                        />
+                                        {duplicateError && (
+                                            <p className="text-[10px] text-red-400 animate-in fade-in slide-in-from-top-1">{duplicateError}</p>
+                                        ) || (
+                                                <p className="text-[10px] text-text-secondary">Categories help group your list items.</p>
+                                            )}
+                                    </div>
+                                    <div className="flex justify-end gap-2 mt-4">
+                                        <button
+                                            onClick={() => setIsAdding(false)}
+                                            className="px-3 py-1.5 text-xs text-text-secondary hover:text-white"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleAddTask}
+                                            disabled={!newTitle.trim()}
+                                            className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all hover:bg-emerald-500"
+                                        >
+                                            Add to List
+                                        </button>
+                                    </div>
                                 </div>
+                            ) : (
+                                <button
+                                    onClick={() => setIsAdding(true)}
+                                    className="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white w-full transition-all"
+                                >
+                                    <Plus size={20} />
+                                    <span className="text-[15px]">Add task</span>
+                                </button>
                             )}
                         </div>
-                    ))}
-
-                    <div className="pt-4">
-                        {isAdding ? (
-                            <div className="bg-[#2a2a2c] border border-[#3a3a3c] rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
-                                <div className="space-y-3">
-                                    <input
-                                        autoFocus
-                                        value={newTitle}
-                                        onChange={e => setNewTitle(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') handleAddTask();
-                                            if (e.key === 'Escape') setIsAdding(false);
-                                        }}
-                                        placeholder="Item name (e.g. Toothbrush)"
-                                        className="w-full bg-transparent border-none text-white placeholder:text-text-secondary focus:ring-0 p-0 text-[15px]"
-                                    />
-                                    <input
-                                        value={newCategory}
-                                        onChange={e => setNewCategory(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter') handleAddTask();
-                                            if (e.key === 'Escape') setIsAdding(false);
-                                        }}
-                                        placeholder="Category (e.g. Toiletries)"
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-text-secondary focus:outline-none focus:border-emerald-500/50 transition-all"
-                                    />
-                                    {duplicateError && (
-                                        <p className="text-[10px] text-red-400 animate-in fade-in slide-in-from-top-1">{duplicateError}</p>
-                                    ) || (
-                                            <p className="text-[10px] text-text-secondary">Categories help group your list items.</p>
-                                        )}
-                                </div>
-                                <div className="flex justify-end gap-2 mt-4">
-                                    <button
-                                        onClick={() => setIsAdding(false)}
-                                        className="px-3 py-1.5 text-xs text-text-secondary hover:text-white"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={handleAddTask}
-                                        disabled={!newTitle.trim()}
-                                        className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all hover:bg-emerald-500"
-                                    >
-                                        Add to List
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => setIsAdding(true)}
-                                className="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-white w-full transition-all"
-                            >
-                                <Plus size={20} />
-                                <span className="text-[15px]">Add task</span>
-                            </button>
-                        )}
                     </div>
                 </div>
-            </div>
+            </DndContext>
         </div>
     );
 }

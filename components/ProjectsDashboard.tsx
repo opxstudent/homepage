@@ -133,17 +133,19 @@ export default function ProjectsDashboard() {
     const selectedProject = projects.find(p => p.id === selectedId) ?? null;
     const selectedTasks = tasks.filter(t => t.project_id === selectedId);
 
-    function handleTasksChange(updated: Task[]) {
+    function handleTasksChange(projectTasks: Task[]) {
         setTasks(prev => [
             ...prev.filter(t => t.project_id !== selectedId),
-            ...updated,
+            ...projectTasks,
         ]);
+    }
+
+    function handleTaskUpdate(id: string, patch: Partial<Task>) {
+        setTasks(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
     }
 
     async function addTask(status: Task['status'], title: string, dueDate: string | null, startDate: string | null = null, endDate: string | null = null, category: string | null = null) {
         if (!selectedId) return;
-        const projectTasks = tasks.filter(t => t.project_id === selectedId);
-        const colTasks = projectTasks.filter(t => t.status === status);
 
         const { data, error } = await supabase.from('tasks').insert({
             project_id: selectedId,
@@ -153,11 +155,11 @@ export default function ProjectsDashboard() {
             start_date: startDate || null,
             end_date: endDate || null,
             category: category || null,
-            order: colTasks.length,
+            order: tasks.filter(t => t.project_id === selectedId && t.status === status).length,
         }).select().single();
 
         if (data) {
-            handleTasksChange([...projectTasks, data]);
+            setTasks(prev => [...prev, data]);
         }
     }
 
@@ -377,7 +379,7 @@ export default function ProjectsDashboard() {
                                 tasks={selectedTasks}
                                 onUpdateTask={async (id, patch) => {
                                     await supabase.from('tasks').update(patch).eq('id', id);
-                                    handleTasksChange(tasks.map(t => t.id === id ? { ...t, ...patch } : t));
+                                    handleTaskUpdate(id, patch);
                                 }}
                                 onBack={() => setSelectedId(null)}
                                 onAddTask={addTask}

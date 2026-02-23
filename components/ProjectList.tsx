@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, Fragment } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { Project, Task } from './ProjectsDashboard';
-import { MoreHorizontal, CheckCircle2, Circle, Clock, ChevronDown, ChevronRight, Edit2, X } from 'lucide-react';
+import { MoreHorizontal, CheckCircle2, Circle, Clock, ChevronDown, ChevronRight, Edit2, X, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
-import { toUTCISO, formatLocalTime } from '@/lib/dateUtils';
-
-import { Plus } from 'lucide-react';
+import { toUTCISO, formatLocalTime, formatLocalDate, formatFullDateTime } from '@/lib/dateUtils';
 
 interface Props {
     project: Project;
@@ -171,10 +170,15 @@ function TaskGroup({ title, tasks, color, onUpdateTask }: { title: string; tasks
 function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Props['onUpdateTask'] }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [editTitle, setEditTitle] = useState(task.title);
-    const [editDue, setEditDue] = useState(task.due_date ? task.due_date.slice(0, 10) : '');
-    const [editStart, setEditStart] = useState(formatLocalTime(task.start_date));
-    const [editEnd, setEditEnd] = useState(formatLocalTime(task.end_date));
+    const [editTitle, setEditTitle] = useState('');
+    const [editDue, setEditDue] = useState('');
+    const [editStart, setEditStart] = useState('');
+    const [editEnd, setEditEnd] = useState('');
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const handleStatusChange = (status: Task['status']) => {
         onUpdateTask(task.id, { status });
@@ -210,22 +214,22 @@ function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Prop
                         <h3 className={`text-base font-medium text-white mb-1 ${task.status === 'done' ? 'line-through text-text-secondary' : ''}`}>
                             {task.title}
                         </h3>
-                        {(task.due_date || task.start_date || task.end_date) && (
+                        {(task.due_date || task.start_date || task.end_date) && isMounted && (
                             <div className="flex flex-col gap-1 mt-1 text-xs text-text-secondary">
                                 {task.start_date && task.end_date ? (
                                     <div className="flex items-center gap-1.5">
-                                        <Clock size={12} />
+                                        <Clock size={12} className="text-emerald-500/70" />
                                         <span>
-                                            {new Date(task.start_date).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(task.end_date).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                            {formatFullDateTime(task.start_date)} - {formatLocalTime(task.end_date)}
                                         </span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-1.5">
-                                        <Clock size={12} />
+                                        <Clock size={12} className="text-emerald-500/70" />
                                         <span>
-                                            {task.due_date ? new Date(task.due_date).toLocaleDateString('en-GB') :
-                                                task.start_date ? new Date(task.start_date).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) :
-                                                    new Date(task.end_date!).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
+                                            {task.due_date ? formatLocalDate(task.due_date) :
+                                                task.start_date ? formatFullDateTime(task.start_date) :
+                                                    formatFullDateTime(task.end_date!)}
                                         </span>
                                     </div>
                                 )}
@@ -240,120 +244,174 @@ function MobileTaskCard({ task, onUpdateTask }: { task: Task; onUpdateTask: Prop
                     </button>
                 </div>
 
-                {/* Status Dropdown */}
-                {menuOpen && (
+                {/* Status Dropdown / Bottom Sheet */}
+                {menuOpen && isMounted && typeof document !== 'undefined' && createPortal(
                     <React.Fragment>
-                        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                        <div className="absolute right-0 top-8 z-20 w-48 bg-[#2a2a2c] border border-[#3a3a3c] rounded-xl shadow-2xl overflow-hidden py-1">
-                            <div className="px-3 py-2 text-xs font-semibold text-text-secondary uppercase tracking-wider border-b border-[#3a3a3c]">
-                                Move to...
+                        <div
+                            className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-[2px] transition-opacity duration-300"
+                            onClick={() => setMenuOpen(false)}
+                        />
+                        <div className="fixed left-0 right-0 bottom-0 z-[120] bg-gradient-to-b from-[#1c1c1e] to-[#121214] border-t border-white/5 rounded-t-[2.5rem] shadow-[0_-20px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden pb-safe-area animate-in slide-in-from-bottom duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]">
+                            <div className="w-10 h-1 bg-white/10 rounded-full mx-auto my-4" />
+                            <div className="px-6 py-1 text-[10px] font-bold text-text-secondary/60 uppercase tracking-[2px] mb-2 flex items-center gap-2">
+                                <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                Project Options
                             </div>
-                            <button
-                                onClick={() => handleStatusChange('todo')}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
-                            >
-                                <Circle size={16} /> To Do
-                            </button>
-                            <button
-                                onClick={() => handleStatusChange('in_progress')}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-400 hover:bg-white/5 hover:text-blue-300 transition-colors"
-                            >
-                                <Clock size={16} /> In Progress
-                            </button>
-                            <button
-                                onClick={() => handleStatusChange('done')}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-emerald-400 hover:bg-white/5 hover:text-emerald-300 transition-colors"
-                            >
-                                <CheckCircle2 size={16} /> Done
-                            </button>
-                            <div className="border-t border-[#3a3a3c] my-1" />
-                            <button
-                                onClick={() => {
-                                    setMenuOpen(false);
-                                    setEditTitle(task.title);
-                                    setEditDue(task.due_date ? task.due_date.slice(0, 10) : '');
-                                    setEditStart(formatLocalTime(task.start_date));
-                                    setEditEnd(formatLocalTime(task.end_date));
-                                    setIsEditing(true);
-                                }}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-text-secondary hover:bg-white/5 hover:text-white transition-colors"
-                            >
-                                <Edit2 size={16} /> Edit
-                            </button>
+                            <div className="px-3 pb-4 space-y-1">
+                                <div className="grid grid-cols-3 gap-2 mb-2 p-1 bg-white/5 rounded-2xl">
+                                    <button
+                                        onClick={() => handleStatusChange('todo')}
+                                        className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-all ${task.status === 'todo' ? 'bg-white/10 text-white' : 'text-text-secondary hover:text-white/80'}`}
+                                    >
+                                        <Circle size={16} />
+                                        <span className="text-[10px] font-semibold">To Do</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleStatusChange('in_progress')}
+                                        className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-all ${task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' : 'text-text-secondary hover:text-white/80'}`}
+                                    >
+                                        <Clock size={16} />
+                                        <span className="text-[10px] font-semibold">Working</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleStatusChange('done')}
+                                        className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-all ${task.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : 'text-text-secondary hover:text-white/80'}`}
+                                    >
+                                        <CheckCircle2 size={16} />
+                                        <span className="text-[10px] font-semibold">Done</span>
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        console.log('Opening edit for task:', task.id);
+                                        try {
+                                            setEditTitle(task.title);
+                                            setEditDue(task.due_date ? String(task.due_date).substring(0, 10) : '');
+                                            setEditStart(formatLocalTime(task.start_date));
+                                            setEditEnd(formatLocalTime(task.end_date));
+                                            setIsEditing(true);
+                                            setMenuOpen(false);
+                                            console.log('Edit state triggered');
+                                        } catch (err) {
+                                            console.error('Failed to open edit modal:', err);
+                                            setEditTitle(task.title);
+                                            setIsEditing(true);
+                                            setMenuOpen(false);
+                                        }
+                                    }}
+                                    className="w-full h-14 flex items-center gap-4 px-6 text-sm font-semibold text-white bg-white/5 hover:bg-white/10 active:scale-[0.98] rounded-2xl transition-all border border-white/5"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                        <Edit2 size={16} />
+                                    </div>
+                                    Edit Task Details
+                                </button>
+
+                                <button
+                                    onClick={() => setMenuOpen(false)}
+                                    className="w-full h-14 flex items-center justify-center text-sm font-bold text-text-secondary hover:text-white bg-transparent rounded-2xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
-                    </React.Fragment>
+                    </React.Fragment>,
+                    document.body
                 )}
             </div>
 
             {/* Edit modal */}
-            {isEditing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-                    <div className="bg-[#202022] rounded-2xl p-6 w-full max-w-sm border border-[#323234] shadow-xl">
-                        <div className="flex items-start justify-between mb-4">
-                            <h3 className="text-base font-semibold text-white">Edit Task</h3>
-                            <button onClick={() => setIsEditing(false)} className="text-text-secondary hover:text-white">
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="space-y-4 mb-6">
-                            <div>
-                                <label className="text-xs text-text-secondary block mb-1.5">Title</label>
-                                <input
-                                    autoFocus
-                                    value={editTitle}
-                                    onChange={e => setEditTitle(e.target.value)}
-                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs text-text-secondary block mb-1.5">Due Date (All-Day)</label>
-                                <input
-                                    type="date"
-                                    value={editDue}
-                                    onChange={e => { setEditDue(e.target.value); }}
-                                    className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-xs text-text-secondary block mb-1.5">Start Time</label>
-                                    <input
-                                        type="text"
-                                        placeholder="HH:mm"
-                                        value={editStart}
-                                        onChange={e => setEditStart(e.target.value)}
-                                        className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
-                                    />
+            {isEditing && isMounted && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md px-4 py-6 animate-in fade-in duration-300">
+                    <div className="bg-[#1c1c1e] border border-white/10 rounded-[2.5rem] p-7 w-full max-w-sm shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] flex flex-col max-h-[90vh] overflow-y-auto animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                                    <Edit2 size={20} />
                                 </div>
                                 <div>
-                                    <label className="text-xs text-text-secondary block mb-1.5">End Time</label>
-                                    <input
-                                        type="text"
-                                        placeholder="HH:mm"
-                                        value={editEnd}
-                                        onChange={e => setEditEnd(e.target.value)}
-                                        className="w-full bg-[#2a2a2c] border border-[#3a3a3c] focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-colors"
-                                    />
+                                    <h3 className="text-lg font-bold text-white leading-tight">Edit Task</h3>
+                                    <p className="text-[11px] text-text-secondary font-medium tracking-wide">Refine your objectives</p>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex gap-3 justify-end">
                             <button
                                 onClick={() => setIsEditing(false)}
-                                className="px-4 py-2 bg-[#323234] hover:bg-[#3a3a3c] text-white rounded-lg text-sm transition-all"
+                                className="w-10 h-10 flex items-center justify-center text-text-secondary hover:text-white bg-white/5 rounded-full transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6 mb-8 flex-1">
+                            <div>
+                                <label className="text-[10px] font-bold text-text-secondary/60 uppercase tracking-[2px] block mb-2 ml-1">Title</label>
+                                <input
+                                    autoFocus
+                                    onFocus={e => e.target.select()}
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    className="w-full bg-white/5 border border-white/5 focus:border-emerald-500/50 rounded-2xl px-5 py-4 text-[15px] text-white focus:outline-none transition-all placeholder:text-text-secondary/30 ring-0 focus:ring-4 focus:ring-emerald-500/10"
+                                    placeholder="Task title"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-bold text-text-secondary/60 uppercase tracking-[2px] block mb-2 ml-1">Due Date</label>
+                                    <div className="relative group">
+                                        <input
+                                            type="date"
+                                            value={editDue}
+                                            onChange={e => setEditDue(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/5 focus:border-emerald-500/50 rounded-2xl px-5 py-4 text-[15px] text-white focus:outline-none transition-all color-scheme-dark appearance-none ring-0 focus:ring-4 focus:ring-emerald-500/10"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-text-secondary/60 uppercase tracking-[2px] block mb-2 ml-1">Start</label>
+                                        <input
+                                            type="text"
+                                            placeholder="HH:mm"
+                                            value={editStart}
+                                            onChange={e => setEditStart(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/5 focus:border-emerald-500/50 rounded-2xl px-5 py-4 text-[15px] text-white focus:outline-none transition-all placeholder:text-text-secondary/30 ring-0 focus:ring-4 focus:ring-blue-500/10"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-text-secondary/60 uppercase tracking-[2px] block mb-2 ml-1">End</label>
+                                        <input
+                                            type="text"
+                                            placeholder="HH:mm"
+                                            value={editEnd}
+                                            onChange={e => setEditEnd(e.target.value)}
+                                            className="w-full bg-white/5 border border-white/5 focus:border-emerald-500/50 rounded-2xl px-5 py-4 text-[15px] text-white focus:outline-none transition-all placeholder:text-text-secondary/30 ring-0 focus:ring-4 focus:ring-blue-500/10"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-auto">
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="flex-1 py-4 text-sm font-bold text-text-secondary hover:text-white transition-all"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={!editTitle.trim()}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                                className="flex-[2] py-4 bg-emerald-500 hover:bg-emerald-400 text-[#0a0a0b] rounded-[1.25rem] text-sm font-bold shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)] transition-all disabled:opacity-30 disabled:shadow-none active:scale-[0.98]"
                             >
-                                Save
+                                Save Changes
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </React.Fragment>
     );

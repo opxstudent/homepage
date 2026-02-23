@@ -26,13 +26,34 @@ export function toUTCISO(dateStr: string, timeStr: string | null): string | null
  * Always returns SGT (UTC+8) regardless of browser settings.
  */
 export function formatLocalTime(isoString: string | null): string {
-    if (!isoString) return '';
+    if (typeof window === 'undefined' || !isoString) return '';
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('en-GB', {
-        timeZone: 'Asia/Singapore',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-    });
+    // Singapore is UTC +8
+    const sgt = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    return sgt.getUTCHours().toString().padStart(2, '0') + ':' + sgt.getUTCMinutes().toString().padStart(2, '0');
+}
+
+/**
+ * Converts a UTC ISO string to a local SGT date string (DD/MM/YYYY).
+ */
+export function formatLocalDate(isoString: string | null): string {
+    if (typeof window === 'undefined' || !isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    // SGT +8
+    const sgt = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    return `${sgt.getUTCDate().toString().padStart(2, '0')}/${(sgt.getUTCMonth() + 1).toString().padStart(2, '0')}/${sgt.getUTCFullYear()}`;
+}
+
+/**
+ * Converts a UTC ISO string to a full SGT string (D MMM, HH:mm).
+ */
+export function formatFullDateTime(isoString: string | null): string {
+    if (typeof window === 'undefined' || !isoString) return '';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    const sgt = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${sgt.getUTCDate()} ${months[sgt.getUTCMonth()]}, ${sgt.getUTCHours().toString().padStart(2, '0')}:${sgt.getUTCMinutes().toString().padStart(2, '0')}`;
 }

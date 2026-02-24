@@ -163,6 +163,13 @@ export default function ProjectsDashboard() {
         }
     }
 
+    async function deleteTask(id: string) {
+        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        if (!error) {
+            setTasks(prev => prev.filter(t => t.id !== id));
+        }
+    }
+
     const activeProjects = projects.filter(p => p.type === 'project' && p.status === 'active');
     const activeChecklists = projects.filter(p => p.type === 'checklist' && p.status === 'active');
     // Group goals by year, sorted descending
@@ -381,6 +388,7 @@ export default function ProjectsDashboard() {
                                     await supabase.from('tasks').update(patch).eq('id', id);
                                     handleTaskUpdate(id, patch);
                                 }}
+                                onDeleteTask={deleteTask}
                                 onBack={() => setSelectedId(null)}
                                 onAddTask={addTask}
                             />

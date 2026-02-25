@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, CheckSquare, FolderKanban, Dumbbell } from 'lucide-react';
+import { Home, CheckSquare, FolderKanban, Dumbbell, BookOpen } from 'lucide-react';
 
 const navItems = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Habits', href: '/habits', icon: CheckSquare },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Fitness', href: '/fitness', icon: Dumbbell },
+    { name: 'Library', href: '/library', icon: BookOpen },
 ];
 
 export default function MobileNav() {

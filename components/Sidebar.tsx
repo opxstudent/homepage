@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, CheckSquare, FolderKanban, Dumbbell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, CheckSquare, FolderKanban, Dumbbell, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const navItems = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Habits', href: '/habits', icon: CheckSquare },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Fitness', href: '/fitness', icon: Dumbbell },
+    { name: 'Library', href: '/library', icon: BookOpen },
 ];
 
 interface SidebarProps {

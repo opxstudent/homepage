@@ -248,8 +248,8 @@ export default function UnifiedCalendar() {
                         <div className="flex-1 px-4 flex items-center gap-3 bg-white/[0.02] border-r border-white/5 relative overflow-hidden opacity-60">
                             <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/40 shrink-0" />
                             <div className="flex flex-col min-w-0">
-                                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Last</span>
-                                <span className="text-[11px] font-semibold text-text-secondary truncate leading-tight">{pastEvent.title}</span>
+                                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Last</span>
+                                <span className="text-xs font-semibold text-text-secondary truncate leading-tight">{pastEvent.title}</span>
                             </div>
                         </div>
                     )}
@@ -259,26 +259,26 @@ export default function UnifiedCalendar() {
                             <div className="absolute inset-0 bg-blue-400/10 animate-pulse-slow" />
                             <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)] animate-pulse shrink-0" />
                             <div className="flex flex-col min-w-0 z-10">
-                                <span className="text-[9px] font-bold text-blue-300 uppercase tracking-widest leading-none mb-0.5">Now</span>
-                                <span className="text-[12px] font-bold text-white truncate leading-tight drop-shadow-sm">{nowEvent.title}</span>
+                                <span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest leading-none mb-0.5">Now</span>
+                                <span className="text-[13px] font-bold text-white truncate leading-tight drop-shadow-sm">{nowEvent.title}</span>
                             </div>
                         </div>
                     ) : (
                         <div className="flex-1 px-4 flex items-center gap-3 border-r border-white/5 bg-white/[0.01]">
                             <div className="w-1.5 h-1.5 rounded-full bg-white/5 shrink-0" />
                             <div className="flex flex-col min-w-0">
-                                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Now</span>
-                                <span className="text-[11px] font-medium text-text-secondary/30 italic truncate leading-tight">Refresh your mind</span>
+                                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Now</span>
+                                <span className="text-xs font-medium text-text-secondary/30 italic truncate leading-tight">Refresh your mind</span>
                             </div>
                         </div>
                     )}
 
                     {nextEvent && (
-                        <div className="flex-1 px-4 flex items-center gap-3 bg-white/[0.02] relative overflow-hidden opacity-40 grayscale-[0.3] hover:opacity-60 transition-opacity">
+                        <div className="flex-1 px-4 flex items-center gap-3 bg-amber-500/[0.06] relative overflow-hidden opacity-60 hover:opacity-80 transition-opacity border-l border-amber-500/10">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500/40 shrink-0" />
                             <div className="flex flex-col min-w-0">
-                                <span className="text-[9px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Next</span>
-                                <span className="text-[11px] font-medium text-white/70 truncate leading-tight">{nextEvent.title}</span>
+                                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest leading-none mb-0.5">Next</span>
+                                <span className="text-xs font-medium text-white/70 truncate leading-tight">{nextEvent.title}</span>
                             </div>
                         </div>
                     )}
@@ -377,7 +377,7 @@ export default function UnifiedCalendar() {
                                     className="w-1.5 h-1.5 rounded-full shrink-0"
                                     style={{ backgroundColor: arg.event.backgroundColor || '#3B82F6' }}
                                 />
-                                <span className="truncate flex-1 text-[11px] leading-tight text-white/90">
+                                <span className="truncate flex-1 text-xs leading-tight text-white/90">
                                     {arg.event.title}
                                 </span>
                             </div>

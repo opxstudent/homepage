@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { Project, Task } from './ProjectsDashboard';
-import { Plus, RotateCcw, CheckCircle2, Circle, Edit2, Trash2, X, Check, ChevronRight, ChevronDown, GripVertical } from 'lucide-react';
+import { Plus, RotateCcw, CheckCircle2, Circle, Edit2, Trash2, X, Check, ChevronRight, ChevronDown, GripVertical, ArrowLeft } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -166,9 +166,10 @@ interface Props {
     onTasksChange: (tasks: Task[]) => void;
     onAddTask: (status: Task['status'], title: string, dueDate: string | null, startDate: string | null, endDate: string | null, category: string | null) => void;
     onRefresh: () => void;
+    onBack?: () => void;
 }
 
-export default function ChecklistView({ project, tasks, onTasksChange, onAddTask, onRefresh }: Props) {
+export default function ChecklistView({ project, tasks, onTasksChange, onAddTask, onRefresh, onBack }: Props) {
     const [isAdding, setIsAdding] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newCategory, setNewCategory] = useState('');
@@ -308,9 +309,14 @@ export default function ChecklistView({ project, tasks, onTasksChange, onAddTask
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-5 border-b border-[#323234] flex-shrink-0">
+            <div className="px-4 md:px-8 py-5 border-b border-[#323234] flex-shrink-0">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
+                        {onBack && (
+                            <button onClick={onBack} className="p-1.5 -ml-1.5 hover:bg-white/5 rounded-lg text-text-secondary hover:text-white transition-colors md:hidden">
+                                <ArrowLeft size={18} />
+                            </button>
+                        )}
                         <h1 className="text-xl font-semibold text-white">{project.title}</h1>
                         {project.type === 'goal' && (
                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
@@ -357,7 +363,7 @@ export default function ChecklistView({ project, tasks, onTasksChange, onAddTask
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
             >
-                <div className="flex-1 overflow-y-auto p-8">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8">
                     <div className="max-w-3xl mx-auto space-y-6">
                         {categories.map(cat => (
                             <div key={cat} className="space-y-1">

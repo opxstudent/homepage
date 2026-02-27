@@ -85,11 +85,11 @@ export default function FocusWidget({ mode = 'all' }: FocusWidgetProps) {
                     <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                             <Icon size={8} className={`${iconColor} flex-shrink-0`} />
-                            <span className="text-[10px] font-medium text-white/90 truncate leading-tight">
+                            <span className="text-xs font-medium text-white/90 truncate leading-tight">
                                 {project.title}
                             </span>
                         </div>
-                        <span className="text-[9px] font-mono text-text-secondary opacity-60 flex-shrink-0">{progress}%</span>
+                        <span className="text-[10px] font-mono text-text-secondary opacity-60 flex-shrink-0">{progress}%</span>
                     </div>
                 </div>
 
@@ -111,7 +111,7 @@ export default function FocusWidget({ mode = 'all' }: FocusWidgetProps) {
                 <h3 className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2 pl-1">
                     {currentYear} Goals
                 </h3>
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
                     {currentYearGoals.map(renderCard)}
                 </div>
             </div>

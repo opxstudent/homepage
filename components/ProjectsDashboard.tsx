@@ -381,17 +381,28 @@ export default function ProjectsDashboard() {
                             )}
                         </div>
                         <div className="block md:hidden h-full">
-                            <ProjectList
-                                project={selectedProject}
-                                tasks={selectedTasks}
-                                onUpdateTask={async (id, patch) => {
-                                    await supabase.from('tasks').update(patch).eq('id', id);
-                                    handleTaskUpdate(id, patch);
-                                }}
-                                onDeleteTask={deleteTask}
-                                onBack={() => setSelectedId(null)}
-                                onAddTask={addTask}
-                            />
+                            {selectedProject.type === 'checklist' ? (
+                                <ChecklistView
+                                    project={selectedProject}
+                                    tasks={selectedTasks}
+                                    onTasksChange={handleTasksChange}
+                                    onAddTask={addTask}
+                                    onRefresh={fetchAll}
+                                    onBack={() => setSelectedId(null)}
+                                />
+                            ) : (
+                                <ProjectList
+                                    project={selectedProject}
+                                    tasks={selectedTasks}
+                                    onUpdateTask={async (id, patch) => {
+                                        await supabase.from('tasks').update(patch).eq('id', id);
+                                        handleTaskUpdate(id, patch);
+                                    }}
+                                    onDeleteTask={deleteTask}
+                                    onBack={() => setSelectedId(null)}
+                                    onAddTask={addTask}
+                                />
+                            )}
                         </div>
                     </>
                 ) : (

@@ -53,6 +53,13 @@ function SetRow({
     }, [exerciseId, setNumber]);
 
     const isSaving = useRef(false);
+    const savePending = useRef(false);
+
+    // Store latest state in refs to avoid stale closures during timeouts
+    const currentData = useRef({ weight, reps, rpe, duration, notes, logId });
+    useEffect(() => {
+        currentData.current = { weight, reps, rpe, duration, notes, logId };
+    }, [weight, reps, rpe, duration, notes, logId]);
 
     // Auto-save on debounce
     useEffect(() => {
@@ -65,27 +72,44 @@ function SetRow({
     }, [weight, reps, rpe, duration, notes]);
 
     const handleSave = async () => {
-        if (!weight || !reps || isSaving.current) return;
+        const { weight: currentWeight, reps: currentReps, rpe: currentRpe, duration: currentDuration, notes: currentNotes, logId: currentLogId } = currentData.current;
+
+        if (!currentWeight || !currentReps) return;
+
+        if (isSaving.current) {
+            savePending.current = true;
+            return;
+        }
 
         isSaving.current = true;
         try {
             const payload: any = {
-                weight: Number(weight),
-                reps: Number(reps),
-                rpe: Number(rpe) || null,
-                duration_mins: Number(duration) || null,
-                notes: notes || null,
+                weight: Number(currentWeight),
+                reps: Number(currentReps),
+                rpe: currentRpe === '' ? null : Number(currentRpe),
+                duration_mins: currentDuration === '' ? null : Number(currentDuration),
+                notes: currentNotes || null,
                 set_number: setNumber,
             };
 
             // Only include id if it exists
-            if (logId) payload.id = logId;
+            if (currentLogId) payload.id = currentLogId;
 
             const returnedId = await onLog(payload);
-            if (returnedId) setLogId(returnedId);
+
+            if (returnedId) {
+                setLogId(returnedId);
+                // Important: Update ref immediately so subsequent pending saves know they are UPDATEs
+                currentData.current.logId = returnedId;
+            }
             setIsCompleted(true);
         } finally {
             isSaving.current = false;
+            if (savePending.current) {
+                savePending.current = false;
+                // Recursive call to handle any changes that came in while saving
+                handleSave();
+            }
         }
     };
 
